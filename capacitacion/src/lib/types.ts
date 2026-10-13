@@ -41,6 +41,66 @@ export interface Schedule {
 
 export type EnrollmentStatus = 'pendiente' | 'cursando' | 'completado' | 'retirado'
 
+export interface AcademicSettings {
+  id?: number
+  enrollment_active: boolean
+  cycle_name?: string
+  start_date?: string
+  total_classes?: number
+  midterm_class?: number
+}
+
+export interface ClassSession {
+  id: string
+  subject_id: string
+  class_number: number
+  date: string | null
+  start_time: string
+  end_time: string
+  modality: 'presencial' | 'zoom'
+  zoom_link: string | null
+  zoom_details: string | null
+  topic: string | null
+  created_at?: string
+}
+
+export interface ClassEvaluation {
+  id?: string
+  enrollment_id: string
+  class_number: number
+  attendance_score: number
+  punctuality_score: number
+  participation_score: number
+  interest_score: number
+  creativity_score: number
+  timely_delivery_score: number
+  relevance_score: number
+  total_score: number
+  has_homework: boolean
+  homework_score: number | null
+  homework_notes: string | null
+  notes: string | null
+  updated_at?: string
+}
+
+export type MakeupStatus = 'pendiente' | 'asignado' | 'completado' | 'rechazado'
+
+export interface Makeup {
+  id: string
+  enrollment_id: string
+  student_id: string
+  subject_id: string
+  class_number: number
+  reason: string
+  teacher_instructions: string | null
+  status: MakeupStatus
+  makeup_score: number | null
+  created_at: string
+  updated_at: string
+  student?: Profile | null
+  subject?: Subject | null
+}
+
 export interface Enrollment {
   id: string
   student_id: string
@@ -48,6 +108,9 @@ export interface Enrollment {
   status: EnrollmentStatus
   progress: number
   grade: number | null
+  grades?: (number | null)[]
+  midterm_score?: number | null
+  final_exam_score?: number | null
   created_at: string
   subject?: Subject | null
   student?: Profile | null
@@ -62,6 +125,16 @@ export interface Attendance {
   created_at: string
   student?: Profile | null
 }
+
+export const RUBRIC_CRITERIA = [
+  { key: 'attendance_score', label: 'Asistencia a la clase', max: 1 },
+  { key: 'punctuality_score', label: 'Puntualidad en la llegada', max: 1 },
+  { key: 'participation_score', label: 'Participa en clase', max: 4 },
+  { key: 'interest_score', label: 'Muestra interés en el tema', max: 4 },
+  { key: 'creativity_score', label: 'Presenta actividades con creatividad', max: 4 },
+  { key: 'timely_delivery_score', label: 'Entrega actividades en tiempo estipulado', max: 4 },
+  { key: 'relevance_score', label: 'Relaciona el tema con la cotidianidad', max: 2 },
+] as const
 
 export const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 

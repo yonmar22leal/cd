@@ -28,6 +28,12 @@ export default function SubjectsPage() {
     [profile?.id],
   )
 
+  if (loading || !data) return <Loader />
+  const [subjects, schedules, enrollments, settings] = data
+
+  const activeEnrollments = enrollments.filter(e => e.status === 'cursando' || e.status === 'pendiente')
+  const currentActiveLevel = activeEnrollments.length > 0 ? activeEnrollments[0].subject?.level : null
+
   const toggleLevel = async (level: number, isEnrolled: boolean) => {
     setBusy(`level-${level}`)
     setMsg('')
@@ -36,6 +42,9 @@ export default function SubjectsPage() {
         if (!confirm(`¿Seguro que deseas anular tu inscripción al Nivel ${level} completo?`)) return
         await api.unenrollLevel(profile!.id, level)
       } else {
+        if (currentActiveLevel && currentActiveLevel !== level) {
+          throw new Error(`Solo puedes cursar un nivel a la vez. Actualmente estás inscrito en el Nivel ${currentActiveLevel}.`)
+        }
         await api.enrollLevel(profile!.id, level)
         setMsg(`¡Inscripción al Nivel ${level} realizada! Ya puedes ver las clases en tu horario.`)
       }
@@ -47,8 +56,6 @@ export default function SubjectsPage() {
     }
   }
 
-  if (loading || !data) return <Loader />
-  const [subjects, schedules, enrollments, settings] = data
   const byLevel = [1, 2, 3].map((l) => subjects.filter((s) => s.level === l))
 
   return (
@@ -63,6 +70,7 @@ export default function SubjectsPage() {
         const level = i + 1
         // Verificar si el alumno tiene al menos una inscripción activa en este nivel
         const isEnrolled = list.some(s => enrollments.find(e => e.subject_id === s.id))
+        const isOtherLevelActive = currentActiveLevel !== null && currentActiveLevel !== level
         
         return (
           <section key={i} className="level-block" style={{ marginBottom: '3rem' }}>
@@ -75,12 +83,21 @@ export default function SubjectsPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
                   <button
                     className={`btn ${isEnrolled ? 'btn-outline' : 'btn-primary'}`}
-                    disabled={busy === `level-${level}` || (!isEnrolled && !settings.enrollment_active)}
+                    disabled={busy === `level-${level}` || (!isEnrolled && (!settings.enrollment_active || isOtherLevelActive))}
                     onClick={() => toggleLevel(level, isEnrolled)}
                   >
-                    {isEnrolled ? 'Anular inscripción del nivel' : `Inscribirme al Nivel ${level} completo`}
+                    {isEnrolled
+                      ? 'Anular inscripción del nivel'
+                      : isOtherLevelActive
+                      ? `Cursando Nivel ${currentActiveLevel}`
+                      : `Inscribirme al Nivel ${level} completo`}
                   </button>
-                  {!isEnrolled && !settings.enrollment_active && (
+                  {!isEnrolled && isOtherLevelActive && (
+                    <small className="muted" style={{ color: '#f59e0b', fontSize: '0.78rem' }}>
+                      Solo se puede cursar un nivel a la vez
+                    </small>
+                  )}
+                  {!isEnrolled && !isOtherLevelActive && !settings.enrollment_active && (
                     <small className="muted" style={{ color: '#ef4444' }}>Las inscripciones están cerradas</small>
                   )}
                 </div>

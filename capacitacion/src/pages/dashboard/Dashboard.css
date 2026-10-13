@@ -149,9 +149,10 @@
 }
 
 .dash-content {
-  padding: 2.2rem;
-  max-width: 1300px;
+  padding: 1.8rem 2.5rem;
+  max-width: 100%;
   width: 100%;
+  box-sizing: border-box;
   animation: fadeUp 0.5s var(--ease) both;
 }
 
@@ -568,24 +569,26 @@
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 100;
-  background: rgba(5, 13, 31, 0.55);
+  z-index: 9999;
+  background: rgba(5, 13, 31, 0.65);
   backdrop-filter: blur(6px);
-  display: grid;
-  place-items: center;
-  padding: 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 4vh 1rem 2rem;
+  overflow-y: auto;
   animation: fadeIn 0.2s ease both;
 }
 
 .modal {
-  width: min(560px, 100%);
+  width: min(640px, 100%);
   max-height: 90vh;
   overflow-y: auto;
   background: var(--surface);
   border-radius: var(--radius-lg);
-  padding: 1.8rem;
-  box-shadow: var(--shadow-lg);
-  animation: fadeUp 0.35s var(--ease) both;
+  padding: 2rem;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.28);
+  animation: fadeUp 0.25s var(--ease) both;
 }
 
 .modal-head {
@@ -702,3 +705,162 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- Rúbrica Oficial & Evaluaciones ---------- */
+.subtabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.subtab-btn {
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.subtab-btn:hover {
+  background: #f1f5f9;
+  color: var(--text);
+}
+
+.subtab-btn.active {
+  background: var(--brand, #0f766e);
+  color: #fff;
+  border-color: var(--brand, #0f766e);
+  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.2);
+}
+
+.grade-btn-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.grade-btn-cell button {
+  width: 100%;
+  min-width: 44px;
+  padding: 6px 2px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.grade-btn-cell button:hover {
+  border-color: var(--brand, #0f766e);
+  background: #f0fdf4;
+}
+
+.grade-btn-cell button.has-score {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.grade-btn-cell button.is-empty {
+  color: #94a3b8;
+  background: #f8fafc;
+}
+
+.grade-tag-pill {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.grade-tag-pill.midterm {
+  color: #d97706;
+}
+
+.grade-tag-pill.final {
+  color: #2563eb;
+}
+
+.rubric-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.rubric-table th,
+.rubric-table td {
+  padding: 0.75rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.88rem;
+}
+
+.rubric-pill-selector {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.rubric-pill-btn {
+  min-width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.rubric-pill-btn:hover {
+  border-color: var(--brand, #0f766e);
+  background: #f0fdf4;
+}
+
+.rubric-pill-btn.active {
+  background: var(--brand, #0f766e);
+  color: #fff;
+  border-color: var(--brand, #0f766e);
+}
+
+.rubric-total-box {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1px solid #86efac;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.2rem;
+}
+
+.zoom-banner {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+

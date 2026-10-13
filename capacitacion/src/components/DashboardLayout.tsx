@@ -41,8 +41,9 @@ const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: 'Administración',
     items: [
+      { to: '/panel/admin/inscripciones', label: 'Inscripciones', icon: '📝', roles: ['admin'] },
       { to: '/panel/admin/materias', label: 'Gestionar materias', icon: '🗂️', roles: ['admin'] },
-      { to: '/panel/admin/horarios', label: 'Gestionar horarios', icon: '⏰', roles: ['admin'] },
+      { to: '/panel/admin/horarios', label: 'Horarios y ciclos', icon: '⏰', roles: ['admin'] },
       { to: '/panel/admin/usuarios', label: 'Usuarios y roles', icon: '👥', roles: ['admin'] },
     ],
   },

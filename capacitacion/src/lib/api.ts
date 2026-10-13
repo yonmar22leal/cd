@@ -1,5 +1,14 @@
 import { supabase } from './supabase'
-import type { Enrollment, Profile, Schedule, Subject } from './types'
+import type {
+  AcademicSettings,
+  ClassEvaluation,
+  ClassSession,
+  Enrollment,
+  Makeup,
+  Profile,
+  Schedule,
+  Subject,
+} from './types'
 
 const TEACHER_FIELDS = 'id, full_name, email, bio, phone'
 const SUBJECT_FULL = `*, teacher_conectar:profiles!teacher_conectar_id(${TEACHER_FIELDS}), teacher_concebir:profiles!teacher_concebir_id(${TEACHER_FIELDS}), teacher_crear:profiles!teacher_crear_id(${TEACHER_FIELDS})`
@@ -10,8 +19,14 @@ function unwrap<T>({ data, error }: { data: unknown; error: { message: string } 
 }
 
 export const api = {
-  getSettings: async () => unwrap<{ enrollment_active: boolean }>(await supabase.from('settings').select('enrollment_active').single()),
-  updateSettings: async (active: boolean) => unwrap(await supabase.from('settings').update({ enrollment_active: active }).eq('id', 1)),
+  getSettings: async () =>
+    unwrap<AcademicSettings>(
+      await supabase.from('settings').select('*').eq('id', 1).single(),
+    ),
+  updateSettings: async (patch: Partial<AcademicSettings> | boolean) => {
+    const payload = typeof patch === 'boolean' ? { enrollment_active: patch } : patch
+    return unwrap(await supabase.from('settings').update(payload).eq('id', 1))
+  },
 
   subjects: async () =>
     unwrap<Subject[]>(await supabase.from('subjects').select(SUBJECT_FULL).order('level').order('module')),
@@ -84,8 +99,10 @@ export const api = {
         .order('created_at', { ascending: false }),
     ),
 
-  updateEnrollment: async (id: string, patch: Partial<Pick<Enrollment, 'progress' | 'grade' | 'status'>>) =>
-    unwrap(await supabase.from('enrollments').update(patch).eq('id', id)),
+  updateEnrollment: async (
+    id: string,
+    patch: Partial<Pick<Enrollment, 'progress' | 'grade' | 'grades' | 'status' | 'midterm_score' | 'final_exam_score'>>,
+  ) => unwrap(await supabase.from('enrollments').update(patch).eq('id', id)),
 
   saveSubject: async (s: Partial<Subject>) => {
     // Extraemos las relaciones para que no se envíen a la base de datos (solo mandamos los _id)
@@ -144,6 +161,76 @@ export const api = {
           { onConflict: 'subject_id, student_id, date' }
         )
     ),
+
+  classSessions: async (subjectId: string) => {
+    const { data, error } = await supabase
+      .from('class_sessions')
+      .select('*')
+      .eq('subject_id', subjectId)
+      .order('class_number')
+    if (error) return []
+    return (data || []) as ClassSession[]
+  },
+
+  saveClassSession: async (session: Partial<ClassSession>) =>
+    unwrap(
+      await supabase
+        .from('class_sessions')
+        .upsert(session, { onConflict: 'subject_id, class_number' }),
+    ),
+
+  classEvaluations: async (enrollmentIds: string[]) => {
+    if (!enrollmentIds.length) return []
+    const { data, error } = await supabase
+      .from('class_evaluations')
+      .select('*')
+      .in('enrollment_id', enrollmentIds)
+    if (error) return []
+    return (data || []) as ClassEvaluation[]
+  },
+
+  saveClassEvaluation: async (evalData: Partial<ClassEvaluation>) =>
+    unwrap(
+      await supabase
+        .from('class_evaluations')
+        .upsert(evalData, { onConflict: 'enrollment_id, class_number' }),
+    ),
+
+  makeupsForSubject: async (subjectId: string) => {
+    const { data, error } = await supabase
+      .from('makeups')
+      .select('*, student:profiles!student_id(*), subject:subjects!subject_id(*)')
+      .eq('subject_id', subjectId)
+      .order('created_at', { ascending: false })
+    if (error) return []
+    return (data || []) as Makeup[]
+  },
+
+  myMakeups: async (studentId: string) => {
+    const { data, error } = await supabase
+      .from('makeups')
+      .select('*, subject:subjects!subject_id(*)')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false })
+    if (error) return []
+    return (data || []) as Makeup[]
+  },
+
+  requestMakeup: async (params: {
+    enrollment_id: string
+    student_id: string
+    subject_id: string
+    class_number: number
+    reason: string
+  }) =>
+    unwrap(
+      await supabase
+        .from('makeups')
+        .upsert(params, { onConflict: 'enrollment_id, class_number' }),
+    ),
+
+  updateMakeup: async (id: string, patch: Partial<Makeup>) =>
+    unwrap(await supabase.from('makeups').update(patch).eq('id', id)),
 
   graduates: async () =>
     unwrap<Enrollment[]>(

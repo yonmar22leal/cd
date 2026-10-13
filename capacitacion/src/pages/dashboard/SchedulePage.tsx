@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { useAuth } from '../../lib/auth'
 import { api } from '../../lib/api'
 import { useAsync } from '../../lib/useAsync'
-import { DAYS, formatTime } from '../../lib/types'
+import { DAYS, formatTime, type ClassSession, type Schedule } from '../../lib/types'
 import { Loader, PageHeader } from '../../components/ui'
 
-// Semana empezando en lunes
+// Orden de días empezando en lunes, con sábado destacado
 const ORDER = [1, 2, 3, 4, 5, 6, 0]
 
 export default function SchedulePage() {
@@ -14,15 +14,30 @@ export default function SchedulePage() {
   const [view, setView] = useState<'mine' | 'all'>(role === 'admin' ? 'all' : 'mine')
 
   const { data, loading, error } = useAsync(async () => {
-    const schedules = await api.schedules()
+    const [schedules, subjects] = await Promise.all([api.schedules(), api.subjects()])
     let mineIds = new Set<string>()
+
     if (role === 'estudiante') {
       const enr = await api.myEnrollments(profile!.id)
       mineIds = new Set(enr.filter((e) => e.status !== 'retirado').map((e) => e.subject_id))
     } else if (role === 'profesor') {
-      mineIds = new Set(schedules.filter((s) => s.subject?.teacher_conectar_id === profile!.id || s.subject?.teacher_concebir_id === profile!.id || s.subject?.teacher_crear_id === profile!.id).map((s) => s.subject_id))
+      mineIds = new Set(
+        schedules
+          .filter(
+            (s) =>
+              s.subject?.teacher_conectar_id === profile!.id ||
+              s.subject?.teacher_concebir_id === profile!.id ||
+              s.subject?.teacher_crear_id === profile!.id,
+          )
+          .map((s) => s.subject_id),
+      )
     }
-    return { schedules, mineIds }
+
+    // Obtener sesiones para detectar clases vía Zoom
+    const sessionsList = await Promise.all(subjects.map((s) => api.classSessions(s.id)))
+    const zoomSessions: ClassSession[] = sessionsList.flat().filter((sess) => sess.modality === 'zoom' && sess.zoom_link)
+
+    return { schedules, mineIds, zoomSessions, subjects }
   }, [profile?.id, role])
 
   const today = new Date().getDay()
@@ -32,9 +47,22 @@ export default function SchedulePage() {
       : data.schedules
     : []
 
+  const zoomList = data
+    ? data.zoomSessions.filter((zs) => {
+        if (role !== 'admin' || view === 'mine') {
+          return data.mineIds.has(zs.subject_id)
+        }
+        return true
+      })
+    : []
+
   return (
     <>
-      <PageHeader title="Horario de clases" subtitle="Días, horas y aulas de cada materia." />
+      <PageHeader
+        title="Horario de Clases"
+        subtitle="Los 3 niveles se imparten los sábados en simultáneo (9am, 10am y 11am) en aulas independientes."
+      />
+
       {role !== 'admin' && (
         <div className="toolbar">
           <div className="seg">
@@ -47,11 +75,56 @@ export default function SchedulePage() {
           </div>
         </div>
       )}
+
       {error && <div className="alert alert-error">{error}</div>}
-      {loading ? (
+
+      {loading || !data ? (
         <Loader />
       ) : (
         <>
+          {/* Banner de Sábados Destino */}
+          <div className="card" style={{ marginBottom: '2rem', padding: '1.25rem 1.5rem', background: 'linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)', border: '1px solid #bae6fd' }}>
+            <h3 style={{ margin: '0 0 0.4rem 0', color: '#0369a1' }}>🏛️ Jornada de Sábados: 3 Niveles en Paralelo</h3>
+            <p style={{ margin: 0, fontSize: '0.9rem', color: '#334155' }}>
+              Cada sábado las clases comienzan a las <strong>9:00 AM</strong> (Bloque 1), continúan a las <strong>10:00 AM</strong> (Bloque 2) y en fechas especiales a las <strong>11:00 AM</strong>. Los tres niveles transcurren al mismo tiempo en aulas separadas.
+            </p>
+          </div>
+
+          {/* Si hay sesiones de Zoom activas en mis materias */}
+          {zoomList.length > 0 && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h4 style={{ margin: '0 0 0.8rem 0' }}>📹 Clases Virtuales Programadas vía Zoom</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.8rem' }}>
+                {zoomList.map((zs) => {
+                  const sub = data.subjects.find((s) => s.id === zs.subject_id)
+                  return (
+                    <div key={zs.id} className="card" style={{ padding: '1rem', borderLeft: '4px solid #2563eb' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 4 }}>
+                        <span className="badge badge-blue">
+                          {sub ? `Nivel ${sub.level} · ${sub.name}` : `Clase ${zs.class_number}`}
+                        </span>
+                        <small className="muted">{zs.start_time.slice(0, 5)} - {zs.end_time.slice(0, 5)}</small>
+                      </div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#1e293b', marginBottom: 4 }}>
+                        Clase {zs.class_number} vía Zoom
+                      </div>
+                      {zs.zoom_details && <p style={{ margin: '4px 0 8px', fontSize: '0.82rem', color: '#64748b' }}>{zs.zoom_details}</p>}
+                      <a
+                        href={zs.zoom_link!}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-primary btn-sm"
+                        style={{ textDecoration: 'none', display: 'inline-block' }}
+                      >
+                        🚀 Unirse a la clase en Zoom
+                      </a>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {list.length === 0 && (
             <div className="alert alert-warning">
               {view === 'mine'
@@ -59,20 +132,29 @@ export default function SchedulePage() {
                 : 'Aún no se han publicado horarios.'}
             </div>
           )}
+
           <div className="week">
             {ORDER.map((d) => {
-              const items = list.filter((s) => s.day_of_week === d)
+              const items = list.filter((s: Schedule) => s.day_of_week === d)
+              const isSaturday = d === 6
+
               return (
-                <div key={d} className={`week-day ${d === today ? 'today' : ''}`}>
-                  <h4>
+                <div
+                  key={d}
+                  className={`week-day ${d === today ? 'today' : ''}`}
+                  style={isSaturday ? { border: '2px solid #0284c7', background: '#f8fafc' } : undefined}
+                >
+                  <h4 style={isSaturday ? { color: '#0369a1' } : undefined}>
                     {DAYS[d]}
+                    {isSaturday && <span className="badge badge-blue" style={{ marginLeft: 6 }}>Principal</span>}
                     {d === today && <span className="badge badge-green">Hoy</span>}
                   </h4>
-                  {items.map((s) => (
+
+                  {items.map((s: Schedule) => (
                     <div key={s.id} className={`class-block lvl-${s.subject?.level}`}>
                       <strong>{s.subject?.name}</strong>
                       <small>🕒 {formatTime(s.start_time)} – {formatTime(s.end_time)}</small>
-                      <small>📍 {s.room || (s.modality === 'virtual' ? 'Virtual' : 'Por definir')}</small>
+                      <small>📍 {s.room || (s.modality === 'virtual' ? 'Virtual (Zoom)' : 'Por definir')}</small>
                       {s.subject?.teacher_concebir && <small>👤 {s.subject.teacher_concebir.full_name}</small>}
                     </div>
                   ))}

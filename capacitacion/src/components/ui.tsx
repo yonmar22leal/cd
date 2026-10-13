@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 export function Loader() {
   return (
@@ -49,7 +50,7 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onMouseDown={onClose}>
       <div className="modal" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
@@ -60,7 +61,8 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
