@@ -219,6 +219,85 @@
   max-width: 560px;
 }
 
+.welcome-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  position: relative;
+  z-index: 1;
+}
+
+.welcome-text {
+  flex: 1;
+  min-width: 250px;
+}
+
+.welcome-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.welcome-btn {
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0.75rem 1.4rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s, box-shadow 0.2s;
+  white-space: nowrap;
+}
+
+.welcome-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+}
+
+.welcome-closed-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.welcome-btn-disabled {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.92rem;
+  padding: 0.65rem 1.2rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: background 0.2s;
+}
+
+.welcome-btn-disabled:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.welcome-closed-subtext {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .welcome-action,
+  .welcome-closed-pill {
+    align-items: flex-start;
+    width: 100%;
+  }
+  .welcome-btn,
+  .welcome-btn-disabled {
+    width: 100%;
+    text-align: center;
+  }
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -451,6 +530,42 @@
 /* ---------- Subjects ---------- */
 .level-block {
   margin-bottom: 2.2rem;
+  transition: opacity 0.2s;
+}
+
+.level-block-locked {
+  opacity: 0.72;
+}
+
+.level-block-locked .level-pill {
+  background: #64748b;
+}
+
+.level-block-completed .level-pill {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.level-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.3px;
+}
+
+.level-status-locked {
+  background: #f1f5f9;
+  color: #475467;
+  border: 1px solid #cbd5e1;
+}
+
+.level-status-completed {
+  background: #ecfdf3;
+  color: #0e9150;
+  border: 1px solid #a7f3d0;
 }
 
 .level-title {

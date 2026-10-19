@@ -37,7 +37,7 @@ function NextClasses({ schedules }: { schedules: Schedule[] }) {
   )
 }
 
-function StudentHome({ userId }: { userId: string }) {
+function StudentHome({ userId, greet, first }: { userId: string; greet: string; first: string }) {
   const [makeupModal, setMakeupModal] = useState<{
     enrollment: Enrollment
     classNum: number
@@ -89,6 +89,36 @@ function StudentHome({ userId }: { userId: string }) {
 
   return (
     <>
+      <section className="welcome">
+        <div className="welcome-inner">
+          <div className="welcome-text">
+            <h1>
+              {greet}, {first} 👋
+            </h1>
+            <p>Sigue avanzando en tu formación. ¡Tu destino te espera!</p>
+          </div>
+
+          <div className="welcome-action">
+            {settings.enrollment_active ? (
+              <Link to="/panel/materias" className="btn btn-light welcome-btn" id="btn-inscribirme-header">
+                📝 Inscribirme
+              </Link>
+            ) : (
+              <div className="welcome-closed-pill" title="Aún no están abiertas las inscripciones">
+                <button
+                  type="button"
+                  className="btn welcome-btn-disabled"
+                  onClick={() => alert('Aún no están abiertas las inscripciones para el próximo ciclo.')}
+                >
+                  🔒 Inscripciones cerradas
+                </button>
+                <small className="welcome-closed-subtext">Aún no están abiertas las inscripciones</small>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
       <div className="stats-grid">
         <StatCard icon="📚" label="Materias inscritas" value={active.length} />
         <StatCard icon="📈" label="Progreso promedio" value={`${avg}%`} tone="blue" />
@@ -437,17 +467,22 @@ export default function Overview() {
 
   return (
     <>
-      <section className="welcome">
-        <h1>
-          {greet}, {first} 👋
-        </h1>
-        <p>
-          {profile.role === 'estudiante' && 'Sigue avanzando en tu formación. ¡Tu destino te espera!'}
-          {profile.role === 'profesor' && 'Gracias por invertir tu vida en formar líderes.'}
-          {profile.role === 'admin' && 'Aquí tienes un resumen de Capacitación Destino.'}
-        </p>
-      </section>
-      {profile.role === 'estudiante' && <StudentHome userId={profile.id} />}
+      {profile.role !== 'estudiante' && (
+        <section className="welcome">
+          <div className="welcome-inner">
+            <div className="welcome-text">
+              <h1>
+                {greet}, {first} 👋
+              </h1>
+              <p>
+                {profile.role === 'profesor' && 'Gracias por invertir tu vida en formar líderes.'}
+                {profile.role === 'admin' && 'Aquí tienes un resumen de Capacitación Destino.'}
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+      {profile.role === 'estudiante' && <StudentHome userId={profile.id} greet={greet} first={first} />}
       {profile.role === 'profesor' && <TeacherHome userId={profile.id} />}
       {profile.role === 'admin' && <AdminHome />}
     </>
