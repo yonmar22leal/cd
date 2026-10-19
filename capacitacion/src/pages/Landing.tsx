@@ -83,7 +83,7 @@ function Navbar() {
 function Hero() {
   return (
     <section className="hero" id="inicio">
-      <div className="hero-bg" style={{ backgroundImage: 'url(/img/hero.jpg)' }} />
+      <div className="hero-bg" style={{ backgroundImage: `url(${import.meta.env.BASE_URL}img/hero.jpg)` }} />
       <div className="hero-overlay" />
       <div className="hero-orb orb-green" />
       <div className="hero-orb orb-blue" />

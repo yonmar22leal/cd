@@ -19,11 +19,12 @@ import AttendancePage from './pages/dashboard/AttendancePage'
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/ingresar" element={<AuthPage mode="login" />} />
           <Route path="/registro" element={<AuthPage mode="register" />} />
+          <Route path="/verificar" element={<AuthPage mode="verify" />} />
 
           <Route path="/panel" element={<DashboardLayout />}>
             <Route index element={<Overview />} />
