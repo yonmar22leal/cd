@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ClipboardEvent, type KeyboardEvent } from 'react'
+import React, { useEffect, useRef, type ClipboardEvent, type KeyboardEvent } from 'react'
 
 interface OtpInputProps {
   length?: number
@@ -9,7 +9,7 @@ interface OtpInputProps {
 }
 
 export function OtpInput({
-  length = 6,
+  length = 8,
   value,
   onChange,
   disabled = false,
@@ -51,7 +51,7 @@ export function OtpInput({
   }
 
   const handleChange = (index: number, char: string) => {
-    // Only accept alphanumeric characters (mostly numbers for Supabase OTP)
+    // Only accept alphanumeric characters
     const cleaned = char.replace(/[^a-zA-Z0-9]/g, '')
     if (!cleaned) return
 
@@ -89,27 +89,33 @@ export function OtpInput({
   }
 
   return (
-    <div className="otp-group" role="group" aria-label="Código de verificación de 6 dígitos">
+    <div className={`otp-group ${length === 8 ? 'otp-group-8' : ''}`} role="group" aria-label={`Código de verificación de ${length} dígitos`}>
       {digits.map((digit, idx) => (
-        <input
-          key={idx}
-          ref={(el) => {
-            inputsRef.current[idx] = el
-          }}
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          maxLength={1}
-          autoComplete={idx === 0 ? 'one-time-code' : 'off'}
-          className={`otp-digit ${digit ? 'filled' : ''}`}
-          value={digit}
-          disabled={disabled}
-          aria-label={`Dígito ${idx + 1}`}
-          onChange={(e) => handleChange(idx, e.target.value)}
-          onKeyDown={(e) => handleKeyDown(idx, e)}
-          onPaste={handlePaste}
-          onFocus={(e) => e.target.select()}
-        />
+        <React.Fragment key={idx}>
+          {length === 8 && idx === 4 && (
+            <span className="otp-separator" aria-hidden="true">
+              —
+            </span>
+          )}
+          <input
+            ref={(el) => {
+              inputsRef.current[idx] = el
+            }}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={1}
+            autoComplete={idx === 0 ? 'one-time-code' : 'off'}
+            className={`otp-digit ${digit ? 'filled' : ''}`}
+            value={digit}
+            disabled={disabled}
+            aria-label={`Dígito ${idx + 1}`}
+            onChange={(e) => handleChange(idx, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(idx, e)}
+            onPaste={handlePaste}
+            onFocus={(e) => e.target.select()}
+          />
+        </React.Fragment>
       ))}
     </div>
   )

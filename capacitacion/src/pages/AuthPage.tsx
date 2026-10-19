@@ -93,7 +93,7 @@ export default function AuthPage({ mode: initialMode }: { mode: 'login' | 'regis
           setMode('verify')
           setEditingEmail(false)
           setResendCooldown(60)
-          setInfo(`¡Cuenta creada! Hemos enviado un código de 6 dígitos a ${cleanEmail}. Ingrésalo a continuación.`)
+          setInfo(`¡Cuenta creada! Hemos enviado el código de verificación a ${cleanEmail}. Ingrésalo a continuación.`)
         }
       }
     } catch (err) {
@@ -114,7 +114,7 @@ export default function AuthPage({ mode: initialMode }: { mode: 'login' | 'regis
       return
     }
     if (cleanCode.length < 6) {
-      setError('Por favor ingresa los 6 dígitos del código de verificación.')
+      setError('Por favor ingresa el código de verificación completo.')
       return
     }
 
@@ -220,7 +220,7 @@ export default function AuthPage({ mode: initialMode }: { mode: 'login' | 'regis
             </h2>
             <p>
               {mode === 'verify'
-                ? 'Ingresa el código numérico de 6 dígitos enviado a tu correo para activar tu cuenta y acceder al portal.'
+                ? 'Ingresa el código numérico de verificación enviado a tu correo para activar tu cuenta y acceder al portal.'
                 : 'Consulta tu horario, tus materias, tus profesores y sigue tu progreso en la escuela de liderazgo.'}
             </p>
             <ul>
@@ -253,7 +253,7 @@ export default function AuthPage({ mode: initialMode }: { mode: 'login' | 'regis
               <div className="auth-badge">✦ Verificación de cuenta</div>
               <h1>Introduce tu código</h1>
               <p className="muted">
-                Ingresa el código de 6 dígitos que enviamos a tu correo electrónico.
+                Ingresa el código de 8 dígitos que enviamos a tu correo electrónico.
               </p>
 
               {/* Email summary / changer */}
@@ -290,10 +290,10 @@ export default function AuthPage({ mode: initialMode }: { mode: 'login' | 'regis
               <form onSubmit={handleVerifyOtp} style={{ marginTop: '1.5rem' }}>
                 <div className="field">
                   <label style={{ textAlign: 'center', display: 'block', marginBottom: '0.75rem' }}>
-                    Código de 6 dígitos
+                    Código de verificación
                   </label>
                   <OtpInput
-                    length={6}
+                    length={8}
                     value={otpCode}
                     disabled={busy}
                     onChange={(val) => {
