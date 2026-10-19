@@ -10,6 +10,7 @@ import {
   type ClassSession,
   type Enrollment,
   type EnrollmentStatus,
+  type Homework,
   type Makeup,
   type Subject,
 } from '../../lib/types'
@@ -48,11 +49,12 @@ interface RubricModalProps {
   enrollment: Enrollment
   classNum: number
   evaluation?: ClassEvaluation
+  homework?: Homework | null
   onClose: () => void
   onSaved: () => void
 }
 
-function RubricModal({ enrollment, classNum, evaluation, onClose, onSaved }: RubricModalProps) {
+function RubricModal({ enrollment, classNum, evaluation, homework, onClose, onSaved }: RubricModalProps) {
   const [scores, setScores] = useState<Record<string, number>>({
     attendance_score: evaluation?.attendance_score ?? 1,
     punctuality_score: evaluation?.punctuality_score ?? 1,
@@ -261,6 +263,14 @@ function RubricModal({ enrollment, classNum, evaluation, onClose, onSaved }: Rub
             <div style={{ fontSize: '0.82rem', color: '#166534', marginBottom: '0.75rem', background: 'rgba(34, 197, 94, 0.1)', padding: '6px 10px', borderRadius: 6 }}>
               ✦ Dinámica 10/10: La evaluación en aula vale los primeros <strong>10 pts</strong> y esta actividad para el hogar vale los otros <strong>10 pts</strong> (Total: 20 pts).
             </div>
+            {homework && (
+              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '8px 12px', borderRadius: 8, marginBottom: '0.75rem' }}>
+                <strong style={{ color: '#166534', fontSize: '0.85rem' }}>📋 Tarea asignada al curso:</strong>
+                <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{homework.title}</div>
+                <div style={{ fontSize: '0.82rem', color: '#374151', margin: '2px 0' }}>{homework.instructions}</div>
+                {homework.due_date && <small style={{ color: '#15803d', fontWeight: 600 }}>📅 Entrega: {homework.due_date.slice(0, 10)}</small>}
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '0.75rem' }}>
               <div>
                 <label style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: 600 }}>Nota Tarea (0 a 10 pts)</label>
@@ -331,9 +341,11 @@ function SessionsModal({ subject, sessions, onClose, onSaved }: SessionsModalPro
         existing ?? {
           subject_id: subject.id,
           class_number: i + 1,
+          date: null,
           start_time: '09:00',
           end_time: '10:00',
-          modality: i + 1 === 5 ? 'zoom' : 'presencial', // Clase 5 por defecto Zoom
+          modality: i + 1 === 5 ? 'zoom' : 'presencial',
+          room: '',
           zoom_link: '',
           zoom_details: '',
           topic: '',
@@ -359,6 +371,7 @@ function SessionsModal({ subject, sessions, onClose, onSaved }: SessionsModalPro
           api.saveClassSession({
             ...s,
             subject_id: subject.id,
+            date: s.date ? s.date.slice(0, 10) : null,
           }),
         ),
       )
@@ -372,12 +385,14 @@ function SessionsModal({ subject, sessions, onClose, onSaved }: SessionsModalPro
   }
 
   return (
-    <Modal title={`Configurar Sesiones y Zoom · ${subject.name}`} onClose={onClose}>
-      <div className="zoom-banner">
-        <span>📹 <strong>Clases Vía Zoom:</strong> Activa el modo Zoom para las clases donde el sábado esté ocupado (por ejemplo, habitualmente en la Clase 5).</span>
+    <Modal title={`Programar Días, Horarios y Modalidad · ${subject.name}`} onClose={onClose}>
+      <div className="zoom-banner" style={{ marginBottom: '1rem' }}>
+        <span>
+          🗓️ <strong>Días y Modalidad:</strong> Puedes asignar un día extraordinario a cualquier clase (por ejemplo, un lunes por Zoom o presencial para recuperar) y los alumnos lo verán en su horario.
+        </span>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', maxHeight: '55vh', overflowY: 'auto' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', maxHeight: '58vh', overflowY: 'auto', paddingRight: '4px' }}>
         {sessionList.map((s, idx) => {
           const num = idx + 1
           const isZoom = s.modality === 'zoom'
@@ -388,11 +403,11 @@ function SessionsModal({ subject, sessions, onClose, onSaved }: SessionsModalPro
               style={{
                 border: '1px solid var(--border)',
                 borderRadius: 8,
-                padding: '0.8rem',
-                background: isZoom ? '#eff6ff' : '#fff',
+                padding: '0.85rem',
+                background: isZoom ? '#eff6ff' : '#fafafa',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                 <strong>
                   Clase {num} {num === 5 && <span className="badge badge-yellow" style={{ marginLeft: 6 }}>Corte sugerido</span>}
                   {num === 10 && <span className="badge badge-blue" style={{ marginLeft: 6 }}>Examen Final</span>}
@@ -408,8 +423,48 @@ function SessionsModal({ subject, sessions, onClose, onSaved }: SessionsModalPro
                 </select>
               </div>
 
+              {/* Fecha y Horas */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem', marginBottom: 8 }}>
+                <div>
+                  <label style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginBottom: 2 }}>
+                    Fecha Específica (ej. Lunes)
+                  </label>
+                  <input
+                    type="date"
+                    className="input"
+                    style={{ fontSize: '0.85rem', padding: '4px 8px' }}
+                    value={s.date ? s.date.slice(0, 10) : ''}
+                    onChange={(e) => updateSession(idx, { date: e.target.value || null })}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginBottom: 2 }}>
+                    Hora Inicio
+                  </label>
+                  <input
+                    type="time"
+                    className="input"
+                    style={{ fontSize: '0.85rem', padding: '4px 8px' }}
+                    value={s.start_time ? s.start_time.slice(0, 5) : '09:00'}
+                    onChange={(e) => updateSession(idx, { start_time: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginBottom: 2 }}>
+                    Hora Fin
+                  </label>
+                  <input
+                    type="time"
+                    className="input"
+                    style={{ fontSize: '0.85rem', padding: '4px 8px' }}
+                    value={s.end_time ? s.end_time.slice(0, 5) : '10:00'}
+                    onChange={(e) => updateSession(idx, { end_time: e.target.value })}
+                  />
+                </div>
+              </div>
+
               {isZoom ? (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.4rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                   <input
                     type="url"
                     className="input"
@@ -420,14 +475,27 @@ function SessionsModal({ subject, sessions, onClose, onSaved }: SessionsModalPro
                   <input
                     type="text"
                     className="input"
-                    placeholder="Detalles (ID: 123... Clave: 456)"
+                    placeholder="Detalles (ID de reunión y clave)"
                     value={s.zoom_details ?? ''}
                     onChange={(e) => updateSession(idx, { zoom_details: e.target.value })}
                   />
                 </div>
               ) : (
-                <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                  Presencial los sábados en el aula asignada.
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Aula / Salón o Lugar (opcional)"
+                    value={s.room ?? ''}
+                    onChange={(e) => updateSession(idx, { room: e.target.value })}
+                  />
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Observación o Tema (ej. Recuperación)"
+                    value={s.topic ?? ''}
+                    onChange={(e) => updateSession(idx, { topic: e.target.value })}
+                  />
                 </div>
               )}
             </div>
@@ -440,9 +508,138 @@ function SessionsModal({ subject, sessions, onClose, onSaved }: SessionsModalPro
           Cancelar
         </button>
         <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? 'Guardando…' : 'Guardar Configuración'}
+          {saving ? 'Guardando…' : 'Guardar Horarios y Modalidades'}
         </button>
       </div>
+    </Modal>
+  )
+}
+
+interface AssignHomeworkModalProps {
+  subject: Subject
+  homeworks: Homework[]
+  onClose: () => void
+  onSaved: () => void
+}
+
+function AssignHomeworkModal({ subject, homeworks, onClose, onSaved }: AssignHomeworkModalProps) {
+  const [classNum, setClassNum] = useState<number>(1)
+  const [title, setTitle] = useState('')
+  const [instructions, setInstructions] = useState('')
+  const [dueDate, setDueDate] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  const handleClassChange = (num: number) => {
+    setClassNum(num)
+    const ex = homeworks.find((h) => h.class_number === num)
+    if (ex) {
+      setTitle(ex.title || '')
+      setInstructions(ex.instructions || '')
+      setDueDate(ex.due_date ? ex.due_date.slice(0, 10) : '')
+    } else {
+      setTitle('')
+      setInstructions('')
+      setDueDate('')
+    }
+  }
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!title.trim() || !instructions.trim()) {
+      alert('Por favor indica el título y las instrucciones de la tarea.')
+      return
+    }
+    setSaving(true)
+    setMsg('')
+    try {
+      await api.saveHomework({
+        subject_id: subject.id,
+        class_number: classNum,
+        title: title.trim(),
+        instructions: instructions.trim(),
+        due_date: dueDate || null,
+      })
+      setMsg(`¡Tarea para la Clase ${classNum} enviada con éxito! Ya le aparece a los alumnos en su panel.`)
+      onSaved()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al guardar tarea')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal title={`Asignar Tarea para la Casa · ${subject.name}`} onClose={onClose}>
+      <p className="muted" style={{ fontSize: '0.88rem', margin: '0 0 1rem 0' }}>
+        La tarea se enviará directamente al dashboard de todos los estudiantes inscritos en esta materia, con su fecha límite y qué deben hacer (vale 10 pts).
+      </p>
+
+      {msg && <div className="alert alert-success" style={{ marginBottom: '1rem' }}>{msg}</div>}
+
+      <form onSubmit={handleSave}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          <div className="field">
+            <label>Clase a la que pertenece</label>
+            <select
+              className="select"
+              value={classNum}
+              onChange={(e) => handleClassChange(Number(e.target.value))}
+            >
+              {Array.from({ length: 10 }, (_, i) => {
+                const hasHw = homeworks.some((h) => h.class_number === i + 1)
+                return (
+                  <option key={i + 1} value={i + 1}>
+                    Clase {i + 1} {hasHw ? '✓ (Con Tarea Asignada)' : ''}
+                  </option>
+                )
+              })}
+            </select>
+          </div>
+          <div className="field">
+            <label>Fecha Límite de Entrega</label>
+            <input
+              type="date"
+              className="input"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="field" style={{ marginBottom: '1rem' }}>
+          <label>Título de la Tarea / Actividad</label>
+          <input
+            type="text"
+            className="input"
+            placeholder="Ej. Resumen del Capítulo 4 y Preguntas de Aplicación"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="field" style={{ marginBottom: '1.2rem' }}>
+          <label>Instrucciones de la Tarea (Qué deben hacer los alumnos)</label>
+          <textarea
+            className="input"
+            rows={4}
+            placeholder="Escribe claramente lo que deben leer, preparar, resolver o traer listo para la siguiente clase..."
+            value={instructions}
+            onChange={(e) => setInstructions(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="modal-actions">
+          <button type="button" className="btn btn-outline" onClick={onClose} disabled={saving}>
+            Cerrar
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? 'Enviando…' : '🚀 Publicar y Enviar a los Estudiantes'}
+          </button>
+        </div>
+      </form>
     </Modal>
   )
 }
@@ -773,6 +970,7 @@ export default function MyClassesPage() {
   // Modales
   const [rubricTarget, setRubricTarget] = useState<{ enrollment: Enrollment; classNum: number } | null>(null)
   const [sessionsTarget, setSessionsTarget] = useState<Subject | null>(null)
+  const [homeworkTarget, setHomeworkTarget] = useState<Subject | null>(null)
 
   const { data, loading, error, reload } = useAsync(async () => {
     const allSubjects = await api.subjects()
@@ -788,19 +986,22 @@ export default function MyClassesPage() {
     const enrollments = await api.enrollmentsForSubjects(subjectIds)
     const enrollmentIds = enrollments.map((e) => e.id)
 
-    const [evaluations, makeupsList, sessionsData] = await Promise.all([
+    const [evaluations, makeupsList, sessionsData, homeworksData] = await Promise.all([
       api.classEvaluations(enrollmentIds),
       Promise.all(subjectIds.map((id) => api.makeupsForSubject(id))),
       Promise.all(subjectIds.map((id) => api.classSessions(id))),
+      Promise.all(subjectIds.map((id) => api.homeworksForSubjects([id]))),
     ])
 
     const makeups = makeupsList.flat()
     const sessionsMap: Record<string, ClassSession[]> = {}
+    const homeworksMap: Record<string, Homework[]> = {}
     subjectIds.forEach((id, i) => {
       sessionsMap[id] = sessionsData[i] || []
+      homeworksMap[id] = homeworksData[i] || []
     })
 
-    return { subjects, enrollments, evaluations, makeups, sessionsMap }
+    return { subjects, enrollments, evaluations, makeups, sessionsMap, homeworksMap }
   }, [profile?.id, isAdmin])
 
   if (loading || !data) return <Loader />
@@ -856,9 +1057,16 @@ export default function MyClassesPage() {
                     <button
                       type="button"
                       className="btn btn-outline btn-sm"
+                      onClick={() => setHomeworkTarget(s)}
+                    >
+                      📋 Asignar Tarea
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
                       onClick={() => setSessionsTarget(s)}
                     >
-                      📹 Configurar Zoom y Sesiones
+                      📅 Horarios y Modalidad
                     </button>
                     {hasZoomConfigured && (
                       <span className="badge badge-blue" style={{ fontSize: '0.8rem' }}>
@@ -922,7 +1130,20 @@ export default function MyClassesPage() {
           evaluation={data.evaluations.find(
             (ev) => ev.enrollment_id === rubricTarget.enrollment.id && ev.class_number === rubricTarget.classNum,
           )}
+          homework={data.homeworksMap[rubricTarget.enrollment.subject_id]?.find(
+            (h) => h.class_number === rubricTarget.classNum,
+          )}
           onClose={() => setRubricTarget(null)}
+          onSaved={reload}
+        />
+      )}
+
+      {/* Modal de Tareas */}
+      {homeworkTarget && (
+        <AssignHomeworkModal
+          subject={homeworkTarget}
+          homeworks={data.homeworksMap[homeworkTarget.id] || []}
+          onClose={() => setHomeworkTarget(null)}
           onSaved={reload}
         />
       )}

@@ -48,6 +48,9 @@ export interface AcademicSettings {
   start_date?: string
   total_classes?: number
   midterm_class?: number
+  week_offset?: number
+  level_offsets?: Record<string, number>
+  subject_offsets?: Record<string, number>
 }
 
 export interface ClassSession {
@@ -55,13 +58,32 @@ export interface ClassSession {
   subject_id: string
   class_number: number
   date: string | null
+  day_of_week?: number | null
   start_time: string
   end_time: string
   modality: 'presencial' | 'zoom'
   zoom_link: string | null
   zoom_details: string | null
   topic: string | null
+  room?: string | null
+  has_homework?: boolean
+  homework_title?: string | null
+  homework_instructions?: string | null
+  homework_due_date?: string | null
   created_at?: string
+  subject?: Subject | null
+}
+
+export interface Homework {
+  id: string
+  subject_id: string
+  class_number: number
+  title: string
+  instructions: string
+  due_date: string | null
+  created_at?: string
+  updated_at?: string
+  subject?: Subject | null
 }
 
 export interface ClassEvaluation {
@@ -146,14 +168,25 @@ export const RUBRIC_CRITERIA_WITH_HOMEWORK = [
   { key: 'relevance_score', label: 'Relaciona el tema con la cotidianidad', max: 2 },
 ] as const
 
-export function getCurrentClassInfo(settings?: AcademicSettings | null) {
+export function getCurrentClassInfo(
+  settings?: AcademicSettings | null,
+  level?: number,
+  subjectId?: string,
+) {
+  const total = settings?.total_classes || 10
+  const midterm = settings?.midterm_class || 5
+  const cycleName = settings?.cycle_name || 'Ciclo Actual'
+
   if (!settings?.start_date) {
     return {
       classNumber: 1,
       label: 'Clase 1',
       isMidterm: false,
       isFinal: false,
-      cycleName: settings?.cycle_name || 'Ciclo Actual',
+      totalClasses: total,
+      midtermClass: midterm,
+      cycleName,
+      offset: 0,
     }
   }
 
@@ -167,14 +200,17 @@ export function getCurrentClassInfo(settings?: AcademicSettings | null) {
   const diffTime = today.getTime() - start.getTime()
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
 
-  let classNumber = 1
+  let baseClass = 1
   if (diffDays >= 0) {
-    classNumber = Math.floor(diffDays / 7) + 1
+    baseClass = Math.floor(diffDays / 7) + 1
   }
 
-  const total = settings.total_classes || 10
-  const midterm = settings.midterm_class || 5
+  const globalOffset = settings.week_offset || 0
+  const levelOffset = (level && settings.level_offsets?.[String(level)]) || 0
+  const subjectOffset = (subjectId && settings.subject_offsets?.[subjectId]) || 0
+  const totalOffset = globalOffset + levelOffset + subjectOffset
 
+  let classNumber = baseClass + totalOffset
   classNumber = Math.min(Math.max(classNumber, 1), total)
 
   return {
@@ -184,7 +220,8 @@ export function getCurrentClassInfo(settings?: AcademicSettings | null) {
     isFinal: classNumber === total,
     totalClasses: total,
     midtermClass: midterm,
-    cycleName: settings.cycle_name || 'Ciclo Actual',
+    cycleName,
+    offset: totalOffset,
   }
 }
 

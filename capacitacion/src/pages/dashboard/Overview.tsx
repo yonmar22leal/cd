@@ -60,19 +60,27 @@ function StudentHome({ userId, greet, first }: { userId: string; greet: string; 
   const [requesting, setRequesting] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
 
-  const { data, loading, reload } = useAsync(
-    () => Promise.all([
+  const { data, loading, reload } = useAsync(async () => {
+    const [enrollments, schedules, makeups, settings] = await Promise.all([
       api.myEnrollments(userId),
       api.schedules(),
       api.myMakeups(userId),
       api.getSettings().catch(() => ({ enrollment_active: true } as AcademicSettings)),
-    ]),
-    [userId],
-  )
+    ])
+    const activeEnr = enrollments.filter((e) => e.status !== 'retirado')
+    const subjectIds = activeEnr.map((e) => e.subject_id)
+    const [homeworks, evaluations] = await Promise.all([
+      api.homeworksForSubjects(subjectIds),
+      api.classEvaluations(activeEnr.map((e) => e.id)),
+    ])
+    return { enrollments, schedules, makeups, settings, homeworks, evaluations }
+  }, [userId])
 
   if (loading || !data) return <Loader />
-  const [enrollments, schedules, makeups, settings] = data
+  const { enrollments, schedules, makeups, settings, homeworks, evaluations } = data
   const active = enrollments.filter((e) => e.status !== 'retirado')
+  const myLevel = active[0]?.subject?.level
+  const classInfo = getCurrentClassInfo(settings, myLevel)
   const ids = new Set(active.map((e) => e.subject_id))
   const mine = schedules.filter((s) => ids.has(s.subject_id))
   const avg = active.length ? Math.round(active.reduce((a, e) => a + e.progress, 0) / active.length) : 0
@@ -152,8 +160,13 @@ function StudentHome({ userId, greet, first }: { userId: string; greet: string; 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <h4 style={{ margin: 0 }}>🗓️ {settings?.cycle_name || 'Ciclo de Clases'}</h4>
               <span className="badge badge-green" style={{ fontWeight: 800 }}>
-                {getCurrentClassInfo(settings).label}
+                {classInfo.label}
               </span>
+              {myLevel && (
+                <span className="badge badge-blue">
+                  Nivel {myLevel}
+                </span>
+              )}
             </div>
             <span className="muted" style={{ fontSize: '0.88rem' }}>
               Las clases son todos los sábados a partir de las <strong>9:00 AM</strong>. Los 3 niveles cursan en simultáneo.
@@ -163,6 +176,97 @@ function StudentHome({ userId, greet, first }: { userId: string; greet: string; 
             Ver Horario Completo
           </Link>
         </div>
+      </div>
+
+      {/* Tareas y Asignaciones para la Casa */}
+      <div className="card" style={{ marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <h3 style={{ margin: '0 0 4px 0' }}>📋 Mis Tareas y Asignaciones para la Casa</h3>
+            <span className="muted" style={{ fontSize: '0.85rem' }}>
+              Actividades enviadas por tus profesores (cada tarea equivale a 10 puntos de la calificación de la clase).
+            </span>
+          </div>
+          <span className="badge badge-blue">
+            {homeworks.length} {homeworks.length === 1 ? 'tarea asignada' : 'tareas asignadas'}
+          </span>
+        </div>
+
+        {homeworks.length === 0 ? (
+          <Empty
+            icon="🎉"
+            title="No tienes tareas pendientes"
+            text="Tus profesores aún no han asignado tareas para la casa en tus materias actuales."
+          />
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+            {homeworks.map((hw) => {
+              const enrollment = active.find((e) => e.subject_id === hw.subject_id)
+              const evaluation = evaluations.find(
+                (ev) => ev.enrollment_id === enrollment?.id && ev.class_number === hw.class_number,
+              )
+              const hasScore = evaluation?.homework_score != null
+
+              return (
+                <div
+                  key={hw.id || `${hw.subject_id}-${hw.class_number}`}
+                  style={{
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 10,
+                    padding: '1.1rem',
+                    background: hasScore ? '#f8fafc' : '#ffffff',
+                    borderLeft: hasScore ? '4px solid #16a34a' : '4px solid #3b82f6',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                      <span className="badge badge-blue" style={{ fontSize: '0.75rem' }}>
+                        N{hw.subject?.level} · {hw.subject?.name}
+                      </span>
+                      <span className="badge badge-green" style={{ fontSize: '0.75rem', fontWeight: 800 }}>
+                        Clase {hw.class_number}
+                      </span>
+                    </div>
+                    <h4 style={{ margin: '0 0 6px 0', fontSize: '1rem', color: '#1e293b' }}>{hw.title}</h4>
+                    <p style={{ margin: '0 0 10px 0', fontSize: '0.88rem', color: '#475569', lineHeight: 1.45, whiteSpace: 'pre-line' }}>
+                      {hw.instructions}
+                    </p>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 8, marginTop: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                      {hw.due_date ? (
+                        <small style={{ color: '#0369a1', fontWeight: 600 }}>
+                          📅 Entrega: {hw.due_date.slice(0, 10)}
+                        </small>
+                      ) : (
+                        <small className="muted">Entrega: Próxima clase</small>
+                      )}
+
+                      {hasScore ? (
+                        <span className="badge badge-green" style={{ fontWeight: 800 }}>
+                          ✅ Calificada: {evaluation.homework_score} / 10 pts
+                        </span>
+                      ) : (
+                        <span className="badge badge-yellow" style={{ fontWeight: 700 }}>
+                          ⏳ Pendiente (10 pts)
+                        </span>
+                      )}
+                    </div>
+                    {evaluation?.homework_notes && (
+                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 4, fontStyle: 'italic' }}>
+                        Nota del profesor: "{evaluation.homework_notes}"
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Mis Materias y Evaluaciones (Ancho Completo para máxima claridad) */}
@@ -275,10 +379,10 @@ function StudentHome({ userId, greet, first }: { userId: string; greet: string; 
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h3 style={{ margin: 0 }}>Próximas clases</h3>
-            <span className="badge badge-green" style={{ fontWeight: 800 }}>{getCurrentClassInfo(settings).label}</span>
+            <span className="badge badge-green" style={{ fontWeight: 800 }}>{classInfo.label}</span>
           </div>
           {mine.length ? (
-            <NextClasses schedules={mine} classInfo={getCurrentClassInfo(settings)} />
+            <NextClasses schedules={mine} classInfo={classInfo} />
           ) : (
             <Empty icon="✨" title="Aún no estás inscrito" text="Ve a Materias e inscríbete a las de tu nivel." />
           )}

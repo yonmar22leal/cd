@@ -4,6 +4,7 @@ import type {
   ClassEvaluation,
   ClassSession,
   Enrollment,
+  Homework,
   Makeup,
   Profile,
   Schedule,
@@ -178,6 +179,82 @@ export const api = {
         .from('class_sessions')
         .upsert(session, { onConflict: 'subject_id, class_number' }),
     ),
+
+  homeworksForSubjects: async (subjectIds: string[]) => {
+    if (!subjectIds.length) return []
+    try {
+      const { data, error } = await supabase
+        .from('homeworks')
+        .select('*, subject:subjects(*)')
+        .in('subject_id', subjectIds)
+        .order('class_number')
+      if (!error && data && data.length > 0) {
+        return data as Homework[]
+      }
+    } catch {
+      // Fallback a class_sessions
+    }
+
+    try {
+      const { data: sData } = await supabase
+        .from('class_sessions')
+        .select('*, subject:subjects(*)')
+        .in('subject_id', subjectIds)
+        .eq('has_homework', true)
+        .order('class_number')
+      if (!sData) return []
+      return sData.map((s) => ({
+        id: s.id,
+        subject_id: s.subject_id,
+        class_number: s.class_number,
+        title: s.homework_title || `Tarea Clase ${s.class_number}`,
+        instructions: s.homework_instructions || '',
+        due_date: s.homework_due_date || s.date || null,
+        created_at: s.created_at,
+        subject: s.subject,
+      })) as Homework[]
+    } catch {
+      return []
+    }
+  },
+
+  saveHomework: async (hw: {
+    subject_id: string
+    class_number: number
+    title: string
+    instructions: string
+    due_date?: string | null
+  }) => {
+    try {
+      await supabase.from('homeworks').upsert(
+        {
+          subject_id: hw.subject_id,
+          class_number: hw.class_number,
+          title: hw.title,
+          instructions: hw.instructions,
+          due_date: hw.due_date || null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'subject_id, class_number' },
+      )
+    } catch {
+      // Si la tabla homeworks no existe aún
+    }
+
+    return unwrap(
+      await supabase.from('class_sessions').upsert(
+        {
+          subject_id: hw.subject_id,
+          class_number: hw.class_number,
+          has_homework: true,
+          homework_title: hw.title,
+          homework_instructions: hw.instructions,
+          homework_due_date: hw.due_date || null,
+        },
+        { onConflict: 'subject_id, class_number' },
+      ),
+    )
+  },
 
   classEvaluations: async (enrollmentIds: string[]) => {
     if (!enrollmentIds.length) return []

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { api } from '../../lib/api'
 import { useAsync } from '../../lib/useAsync'
-import { DAYS, formatTime, type AcademicSettings, type Schedule } from '../../lib/types'
+import { DAYS, formatTime, getCurrentClassInfo, type AcademicSettings, type Schedule } from '../../lib/types'
 import { Empty, Loader, Modal, PageHeader } from '../../components/ui'
 
 const EMPTY: Partial<Schedule> = {
@@ -119,10 +119,10 @@ export default function AdminSchedules() {
     setCycleMsg('')
     try {
       await api.updateSettings({
-        cycle_name: cycleConfig.cycle_name || settings.cycle_name,
-        start_date: cycleConfig.start_date || initialDate,
-        total_classes: Number(cycleConfig.total_classes || 10),
-        midterm_class: Number(cycleConfig.midterm_class || 5),
+        cycle_name: cycleConfig.cycle_name || settings.cycle_name || 'Ciclo 2026',
+        start_date: cycleConfig.start_date || settings.start_date || initialDate,
+        total_classes: Number(cycleConfig.total_classes || settings.total_classes || 10),
+        midterm_class: Number(cycleConfig.midterm_class || settings.midterm_class || 5),
       })
       setCycleMsg('¡Configuración del ciclo guardada correctamente!')
       await reload()
@@ -132,6 +132,42 @@ export default function AdminSchedules() {
       setSavingCycle(false)
     }
   }
+
+  const adjustGlobalWeek = async (delta: number) => {
+    setSavingCycle(true)
+    try {
+      const currentOffset = settings.week_offset || 0
+      const newOffset = delta === 0 ? 0 : currentOffset + delta
+      await api.updateSettings({ week_offset: newOffset })
+      setCycleMsg(`Desfase global actualizado (${newOffset >= 0 ? '+' : ''}${newOffset} semanas).`)
+      await reload()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al ajustar semana global')
+    } finally {
+      setSavingCycle(false)
+    }
+  }
+
+  const adjustLevelWeek = async (lvl: number, delta: number) => {
+    setSavingCycle(true)
+    try {
+      const currentLevelOffsets = { ...(settings.level_offsets || { '1': 0, '2': 0, '3': 0 }) }
+      const current = currentLevelOffsets[String(lvl)] || 0
+      currentLevelOffsets[String(lvl)] = delta === 0 ? 0 : current + delta
+      await api.updateSettings({ level_offsets: currentLevelOffsets })
+      setCycleMsg(`Desfase de Nivel ${lvl} actualizado (${currentLevelOffsets[String(lvl)] >= 0 ? '+' : ''}${currentLevelOffsets[String(lvl)]} semanas).`)
+      await reload()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al ajustar nivel')
+    } finally {
+      setSavingCycle(false)
+    }
+  }
+
+  const globalInfo = getCurrentClassInfo(settings)
+  const lvl1Info = getCurrentClassInfo(settings, 1)
+  const lvl2Info = getCurrentClassInfo(settings, 2)
+  const lvl3Info = getCurrentClassInfo(settings, 3)
 
   return (
     <>
@@ -163,13 +199,203 @@ export default function AdminSchedules() {
       {error && <div className="alert alert-error">{error}</div>}
       {cycleMsg && <div className="alert alert-success">{cycleMsg}</div>}
 
-      {/* Tarjeta de Ciclo Académico */}
-      <div className="card" style={{ marginBottom: '2rem', padding: '1.5rem' }}>
-        <h3 style={{ margin: '0 0 0.5rem 0' }}>🗓️ Configuración del Ciclo Académico</h3>
-        <p className="muted" style={{ fontSize: '0.88rem', margin: '0 0 1rem 0' }}>
-          Define el sábado en que inician las clases, el total de semanas y en qué clase se aplica la prueba de corte.
-        </p>
+      {/* Tarjeta de Ciclo Académico y Control de Semanas */}
+      <div className="card" style={{ marginBottom: '2rem', padding: '1.5rem', background: '#ffffff', border: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.2rem' }}>
+          <div>
+            <h3 style={{ margin: '0 0 0.3rem 0' }}>🗓️ Control de Calendario y Avance de Semanas</h3>
+            <p className="muted" style={{ fontSize: '0.88rem', margin: 0 }}>
+              Gestiona el inicio del ciclo y añade o resta semanas si se suspendieron clases (global o por nivel).
+            </p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <span className="badge badge-green" style={{ fontSize: '0.9rem', fontWeight: 800, padding: '6px 12px' }}>
+              🌍 Ciclo General: {globalInfo.label} de {globalInfo.totalClasses}
+            </span>
+            <div className="muted" style={{ fontSize: '0.75rem', marginTop: 4 }}>
+              Inicio: {settings.start_date || 'No definido'} · Desfase global: {settings.week_offset || 0} sem
+            </div>
+          </div>
+        </div>
 
+        {/* Sección 1: Ajuste de Semana Global */}
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '1rem 1.25rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem' }}>
+            <div>
+              <strong style={{ display: 'block', fontSize: '0.95rem' }}>⏸️ Desfase Global (Todos los niveles)</strong>
+              <small className="muted">
+                Si un sábado no hubo clases en toda la iglesia (evento especial, lluvia, feriado), resta una semana para pausar el avance.
+              </small>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => adjustGlobalWeek(-1)}
+                disabled={savingCycle}
+                title="Resta 1 semana al ciclo (pausa para todos)"
+              >
+                ⏪ -1 Semana (Pausar)
+              </button>
+              {(settings.week_offset || 0) !== 0 && (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => adjustGlobalWeek(0)}
+                  disabled={savingCycle}
+                  title="Restablece al calendario original de sábados"
+                >
+                  🔄 Reset (0)
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => adjustGlobalWeek(1)}
+                disabled={savingCycle}
+                title="Adelanta 1 semana al ciclo"
+              >
+                ⏩ +1 Semana (Avanzar)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Sección 2: Ajuste Independiente por Nivel */}
+        <div style={{ marginBottom: '1.8rem' }}>
+          <div style={{ marginBottom: '0.8rem' }}>
+            <strong style={{ fontSize: '0.95rem', display: 'block' }}>🎯 Ajuste Independiente por Nivel (1, 2 y 3)</strong>
+            <small className="muted">
+              Si un nivel específico no pudo dar clases un sábado, bájale 1 semana para que a ellos les salga la clase anterior (ej. Clase 5) mientras los demás van por la siguiente (ej. Clase 6).
+            </small>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+            {/* Nivel 1 */}
+            <div style={{ border: '1px solid #bae6fd', borderRadius: 10, padding: '1rem', background: '#f0f9ff' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span className="badge badge-blue">Nivel 1 · Conectar</span>
+                <strong style={{ fontSize: '1.15rem', color: '#0369a1' }}>{lvl1Info.label}</strong>
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: 12 }}>
+                Desfase específico: <strong>{(settings.level_offsets?.['1'] || 0) >= 0 ? '+' : ''}{settings.level_offsets?.['1'] || 0} semanas</strong>
+              </div>
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  style={{ flex: 1 }}
+                  onClick={() => adjustLevelWeek(1, -1)}
+                  disabled={savingCycle}
+                >
+                  -1 Sem
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => adjustLevelWeek(1, 0)}
+                  disabled={savingCycle}
+                  title="Sincronizar con el ciclo global"
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  style={{ flex: 1 }}
+                  onClick={() => adjustLevelWeek(1, 1)}
+                  disabled={savingCycle}
+                >
+                  +1 Sem
+                </button>
+              </div>
+            </div>
+
+            {/* Nivel 2 */}
+            <div style={{ border: '1px solid #fed7aa', borderRadius: 10, padding: '1rem', background: '#fff7ed' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span className="badge badge-yellow">Nivel 2 · Concebir</span>
+                <strong style={{ fontSize: '1.15rem', color: '#c2410c' }}>{lvl2Info.label}</strong>
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: 12 }}>
+                Desfase específico: <strong>{(settings.level_offsets?.['2'] || 0) >= 0 ? '+' : ''}{settings.level_offsets?.['2'] || 0} semanas</strong>
+              </div>
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  style={{ flex: 1 }}
+                  onClick={() => adjustLevelWeek(2, -1)}
+                  disabled={savingCycle}
+                >
+                  -1 Sem
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => adjustLevelWeek(2, 0)}
+                  disabled={savingCycle}
+                  title="Sincronizar con el ciclo global"
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  style={{ flex: 1 }}
+                  onClick={() => adjustLevelWeek(2, 1)}
+                  disabled={savingCycle}
+                >
+                  +1 Sem
+                </button>
+              </div>
+            </div>
+
+            {/* Nivel 3 */}
+            <div style={{ border: '1px solid #bbf7d0', borderRadius: 10, padding: '1rem', background: '#f0fdf4' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span className="badge badge-green">Nivel 3 · Crear</span>
+                <strong style={{ fontSize: '1.15rem', color: '#15803d' }}>{lvl3Info.label}</strong>
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: 12 }}>
+                Desfase específico: <strong>{(settings.level_offsets?.['3'] || 0) >= 0 ? '+' : ''}{settings.level_offsets?.['3'] || 0} semanas</strong>
+              </div>
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  style={{ flex: 1 }}
+                  onClick={() => adjustLevelWeek(3, -1)}
+                  disabled={savingCycle}
+                >
+                  -1 Sem
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => adjustLevelWeek(3, 0)}
+                  disabled={savingCycle}
+                  title="Sincronizar con el ciclo global"
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  style={{ flex: 1 }}
+                  onClick={() => adjustLevelWeek(3, 1)}
+                  disabled={savingCycle}
+                >
+                  +1 Sem
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sección 3: Formulario General de Fechas y Parámetros */}
+        <hr style={{ margin: '1.5rem 0', borderColor: 'var(--border)' }} />
+        <h4 style={{ margin: '0 0 1rem 0' }}>⚙️ Parámetros del Ciclo</h4>
         <form onSubmit={saveCycle} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
           <div className="field">
             <label>Nombre del Ciclo</label>
@@ -190,7 +416,7 @@ export default function AdminSchedules() {
             />
           </div>
           <div className="field">
-            <label>Total de Clases</label>
+            <label>Total de Clases del Ciclo</label>
             <input
               type="number"
               min={5}
@@ -213,7 +439,7 @@ export default function AdminSchedules() {
           </div>
           <div>
             <button type="submit" className="btn btn-primary" disabled={savingCycle} style={{ width: '100%' }}>
-              {savingCycle ? 'Guardando…' : 'Guardar Ciclo'}
+              {savingCycle ? 'Guardando…' : 'Guardar Parámetros'}
             </button>
           </div>
         </form>

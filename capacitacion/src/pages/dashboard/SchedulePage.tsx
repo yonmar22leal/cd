@@ -37,11 +37,13 @@ export default function SchedulePage() {
       )
     }
 
-    // Obtener sesiones para detectar clases vía Zoom
+    // Obtener sesiones para detectar clases vía Zoom y sesiones con fechas específicas (ej. lunes)
     const sessionsList = await Promise.all(subjects.map((s) => api.classSessions(s.id)))
-    const zoomSessions: ClassSession[] = sessionsList.flat().filter((sess) => sess.modality === 'zoom' && sess.zoom_link)
+    const allSessions = sessionsList.flat()
+    const zoomSessions: ClassSession[] = allSessions.filter((sess) => sess.modality === 'zoom' && sess.zoom_link)
+    const datedSessions: ClassSession[] = allSessions.filter((sess) => Boolean(sess.date))
 
-    return { schedules, mineIds, zoomSessions, subjects, settings }
+    return { schedules, mineIds, zoomSessions, datedSessions, subjects, settings }
   }, [profile?.id, role])
 
   const today = new Date().getDay()
@@ -186,13 +188,60 @@ export default function SchedulePage() {
                     )}
                   </h4>
 
+                  {/* Sesiones extraordinarias fijadas por los profesores para este día (ej. lunes) */}
+                  {data.datedSessions
+                    ?.filter((sess) => {
+                      if (role !== 'admin' && view === 'mine' && !data.mineIds.has(sess.subject_id)) return false
+                      const day = new Date(sess.date! + 'T12:00:00').getDay()
+                      return day === d
+                    })
+                    .map((sess) => {
+                      const sub = data.subjects.find((s) => s.id === sess.subject_id)
+                      const isZoom = sess.modality === 'zoom'
+                      return (
+                        <div
+                          key={`sess-${sess.id || sess.subject_id + sess.class_number}`}
+                          className="class-block"
+                          style={{
+                            borderLeft: isZoom ? '4px solid #2563eb' : '4px solid #059669',
+                            background: isZoom ? '#eff6ff' : '#ecfdf5',
+                            marginBottom: 8,
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 4, marginBottom: 3 }}>
+                            <strong>{sub?.name || 'Materia'}</strong>
+                            <span className="badge badge-yellow" style={{ fontSize: '0.7rem', fontWeight: 800 }}>
+                              Clase {sess.class_number} {isZoom ? '📹 Zoom' : '🏫 Presencial'}
+                            </span>
+                          </div>
+                          <small>🕒 {sess.start_time?.slice(0, 5)} – {sess.end_time?.slice(0, 5)}</small>
+                          <small>📅 Fecha: {sess.date}</small>
+                          {sess.room && <small>📍 {sess.room}</small>}
+                          {sess.topic && <small style={{ color: '#0369a1', fontStyle: 'italic' }}>💬 {sess.topic}</small>}
+                          {isZoom && sess.zoom_link && (
+                            <div style={{ marginTop: 4 }}>
+                              <a
+                                href={sess.zoom_link}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn btn-primary btn-sm"
+                                style={{ padding: '2px 8px', fontSize: '0.75rem', textDecoration: 'none' }}
+                              >
+                                Entrar a Zoom
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+
                   {items.map((s: Schedule) => (
                     <div key={s.id} className={`class-block lvl-${s.subject?.level}`}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 4, marginBottom: 3 }}>
                         <strong>{s.subject?.name}</strong>
                         {isSaturday && (
                           <span className="badge badge-blue" style={{ fontSize: '0.72rem', fontWeight: 800 }}>
-                            {classInfo.label}
+                            {getCurrentClassInfo(data?.settings, s.subject?.level, s.subject_id).label}
                           </span>
                         )}
                       </div>
