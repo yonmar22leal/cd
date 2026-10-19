@@ -225,8 +225,12 @@ export const api = {
     instructions: string
     due_date?: string | null
   }) => {
+    let savedInHomeworks = false
+    let hwErrorMsg = ''
+
+    // 1. Intentar guardar en la tabla pública de tareas (homeworks)
     try {
-      await supabase.from('homeworks').upsert(
+      const { error: hwErr } = await supabase.from('homeworks').upsert(
         {
           subject_id: hw.subject_id,
           class_number: hw.class_number,
@@ -237,23 +241,48 @@ export const api = {
         },
         { onConflict: 'subject_id, class_number' },
       )
-    } catch {
-      // Si la tabla homeworks no existe aún
+      if (!hwErr) {
+        savedInHomeworks = true
+      } else {
+        hwErrorMsg = hwErr.message
+      }
+    } catch (e: any) {
+      hwErrorMsg = e?.message || ''
     }
 
-    return unwrap(
-      await supabase.from('class_sessions').upsert(
-        {
-          subject_id: hw.subject_id,
-          class_number: hw.class_number,
-          has_homework: true,
-          homework_title: hw.title,
-          homework_instructions: hw.instructions,
-          homework_due_date: hw.due_date || null,
-        },
-        { onConflict: 'subject_id, class_number' },
-      ),
-    )
+    // 2. Intentar guardar o sincronizar en class_sessions
+    const { data: sessionData, error: sessionErr } = await supabase.from('class_sessions').upsert(
+      {
+        subject_id: hw.subject_id,
+        class_number: hw.class_number,
+        has_homework: true,
+        homework_title: hw.title,
+        homework_instructions: hw.instructions,
+        homework_due_date: hw.due_date || null,
+      },
+      { onConflict: 'subject_id, class_number' },
+    ).select().single()
+
+    // Si guardó en homeworks o en class_sessions con éxito, retornamos
+    if (savedInHomeworks) {
+      return { success: true }
+    }
+    if (!sessionErr && sessionData) {
+      return sessionData
+    }
+
+    // Si falló por falta de columnas/tablas en la base de datos de Supabase:
+    if (
+      sessionErr?.message?.includes('has_homework') ||
+      hwErrorMsg.includes('does not exist') ||
+      sessionErr?.message?.includes('schema cache')
+    ) {
+      throw new Error(
+        'Falta ejecutar la migración de tareas en Supabase. Ve a tu panel de Supabase → SQL Editor y ejecuta el script supabase/cycle_adjustments_and_homework.sql.'
+      )
+    }
+
+    throw new Error(sessionErr?.message || hwErrorMsg || 'Error al guardar la tarea')
   },
 
   classEvaluations: async (enrollmentIds: string[]) => {

@@ -123,29 +123,29 @@ export default function SchedulePage() {
 
           {/* Si hay sesiones de Zoom activas en mis materias */}
           {zoomList.length > 0 && (
-            <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ marginBottom: '1.5rem', maxWidth: '100%' }}>
               <h4 style={{ margin: '0 0 0.8rem 0' }}>📹 Clases Virtuales Programadas vía Zoom</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.8rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '0.8rem' }}>
                 {zoomList.map((zs) => {
                   const sub = data.subjects.find((s) => s.id === zs.subject_id)
                   return (
-                    <div key={zs.id} className="card" style={{ padding: '1rem', borderLeft: '4px solid #2563eb' }}>
+                    <div key={zs.id} className="card" style={{ padding: '1rem', borderLeft: '4px solid #2563eb', maxWidth: '100%', boxSizing: 'border-box' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 4 }}>
                         <span className="badge badge-blue">
                           {sub ? `Nivel ${sub.level} · ${sub.name}` : `Clase ${zs.class_number}`}
                         </span>
                         <small className="muted">{zs.start_time.slice(0, 5)} - {zs.end_time.slice(0, 5)}</small>
                       </div>
-                      <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#1e293b', marginBottom: 4 }}>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#1e293b', marginBottom: 4, wordBreak: 'break-word' }}>
                         Clase {zs.class_number} vía Zoom
                       </div>
-                      {zs.zoom_details && <p style={{ margin: '4px 0 8px', fontSize: '0.82rem', color: '#64748b' }}>{zs.zoom_details}</p>}
+                      {zs.zoom_details && <p style={{ margin: '4px 0 8px', fontSize: '0.82rem', color: '#64748b', wordBreak: 'break-word' }}>{zs.zoom_details}</p>}
                       <a
                         href={zs.zoom_link!}
                         target="_blank"
                         rel="noreferrer"
                         className="btn btn-primary btn-sm"
-                        style={{ textDecoration: 'none', display: 'inline-block' }}
+                        style={{ textDecoration: 'none', display: 'inline-block', maxWidth: '100%', wordBreak: 'break-word', whiteSpace: 'normal' }}
                       >
                         🚀 Unirse a la clase en Zoom
                       </a>
@@ -164,7 +164,8 @@ export default function SchedulePage() {
             </div>
           )}
 
-          <div className="week">
+          <div className="week-wrap">
+            <div className="week">
             {ORDER.map((d) => {
               const items = list.filter((s: Schedule) => s.day_of_week === d)
               const isSaturday = d === 6
@@ -253,6 +254,7 @@ export default function SchedulePage() {
                 </div>
               )
             })}
+            </div>
           </div>
         </>
       )}

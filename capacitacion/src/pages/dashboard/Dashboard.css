@@ -3,6 +3,8 @@
   display: grid;
   grid-template-columns: 270px 1fr;
   min-height: 100vh;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 .sidebar {
@@ -104,8 +106,11 @@
 
 .dash-main {
   min-width: 0;
+  width: 100%;
+  max-width: 100vw;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 .dash-topbar {
@@ -152,7 +157,9 @@
   padding: 1.8rem 2.5rem;
   max-width: 100%;
   width: 100%;
+  min-width: 0;
   box-sizing: border-box;
+  overflow-x: hidden;
   animation: fadeUp 0.5s var(--ease) both;
 }
 
@@ -782,7 +789,7 @@
 /* ---------- Responsive ---------- */
 @media (max-width: 960px) {
   .dash {
-    grid-template-columns: 1fr;
+    grid-template-columns: 100%;
   }
 
   .sidebar {
@@ -818,6 +825,43 @@
 
   .two-col {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .dash-content {
+    padding: 1rem 0.75rem;
+  }
+
+  .dash-topbar {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .welcome {
+    padding: 1.4rem 1rem;
+    border-radius: var(--radius);
+    margin-bottom: 1.2rem;
+  }
+
+  .welcome-inner {
+    gap: 0.8rem;
+  }
+
+  .welcome h1 {
+    font-size: 1.4rem;
+  }
+
+  .page-header {
+    margin-bottom: 1.2rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.4rem;
+  }
+
+  .modal {
+    padding: 1.2rem 1rem;
+    border-radius: var(--radius);
   }
 }
 
@@ -977,5 +1021,109 @@
   gap: 1rem;
   margin-bottom: 1rem;
   font-size: 0.9rem;
+  flex-wrap: wrap;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* ---------- Cuadrícula de Calificaciones Adaptable ---------- */
+.grades-grid-container {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+  margin: 0.6rem 0;
+}
+
+.grades-grid-track {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(44px, 1fr));
+  gap: 6px;
+  min-width: 480px;
+}
+
+@media (max-width: 580px) {
+  /* En teléfonos móviles se acomodan en 2 filas limpias de 5 clases cada una (C1-C5 arriba, C6-C10 abajo) sin desbordamiento */
+  .grades-grid-track {
+    grid-template-columns: repeat(5, 1fr);
+    min-width: 0;
+    gap: 6px;
+  }
+}
+
+.grade-summary-cell {
+  text-align: center;
+  padding: 8px 3px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  transition: all 0.15s;
+}
+
+.grade-summary-cell.has-score {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.grade-summary-cell.midterm {
+  border: 2px solid #f59e0b;
+}
+
+.grade-summary-cell.final {
+  border: 2px solid #3b82f6;
+}
+
+.grade-cell-num {
+  display: block;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.grade-cell-val {
+  font-size: 1.05rem;
+  color: #15803d;
+  line-height: 1.2;
+}
+
+.grade-summary-cell:not(.has-score) .grade-cell-val {
+  color: #94a3b8;
+}
+
+.grade-cell-tag {
+  display: block;
+  font-size: 0.58rem;
+  font-weight: 800;
+  margin-top: 1px;
+}
+
+.grade-cell-tag.corte {
+  color: #d97706;
+}
+
+.grade-cell-tag.final {
+  color: #2563eb;
+}
+
+.grade-cell-tag.recup {
+  color: #0284c7;
+}
+
+/* ---------- Envoltura de Horario ---------- */
+.week-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius);
+  margin-bottom: 1.5rem;
 }
 

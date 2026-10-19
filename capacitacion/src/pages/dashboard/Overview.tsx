@@ -199,7 +199,7 @@ function StudentHome({ userId, greet, first }: { userId: string; greet: string; 
             text="Tus profesores aún no han asignado tareas para la casa en tus materias actuales."
           />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '1rem' }}>
             {homeworks.map((hw) => {
               const enrollment = active.find((e) => e.subject_id === hw.subject_id)
               const evaluation = evaluations.find(
@@ -219,10 +219,12 @@ function StudentHome({ userId, greet, first }: { userId: string; greet: string; 
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
+                    maxWidth: '100%',
+                    boxSizing: 'border-box',
                   }}
                 >
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
                       <span className="badge badge-blue" style={{ fontSize: '0.75rem' }}>
                         N{hw.subject?.level} · {hw.subject?.name}
                       </span>
@@ -230,8 +232,8 @@ function StudentHome({ userId, greet, first }: { userId: string; greet: string; 
                         Clase {hw.class_number}
                       </span>
                     </div>
-                    <h4 style={{ margin: '0 0 6px 0', fontSize: '1rem', color: '#1e293b' }}>{hw.title}</h4>
-                    <p style={{ margin: '0 0 10px 0', fontSize: '0.88rem', color: '#475569', lineHeight: 1.45, whiteSpace: 'pre-line' }}>
+                    <h4 style={{ margin: '0 0 6px 0', fontSize: '1rem', color: '#1e293b', wordBreak: 'break-word' }}>{hw.title}</h4>
+                    <p style={{ margin: '0 0 10px 0', fontSize: '0.88rem', color: '#475569', lineHeight: 1.45, whiteSpace: 'pre-line', wordBreak: 'break-word' }}>
                       {hw.instructions}
                     </p>
                   </div>
@@ -257,7 +259,7 @@ function StudentHome({ userId, greet, first }: { userId: string; greet: string; 
                       )}
                     </div>
                     {evaluation?.homework_notes && (
-                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 4, fontStyle: 'italic' }}>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 4, fontStyle: 'italic', wordBreak: 'break-word' }}>
                         Nota del profesor: "{evaluation.homework_notes}"
                       </div>
                     )}
@@ -279,14 +281,14 @@ function StudentHome({ userId, greet, first }: { userId: string; greet: string; 
               const subjectMakeups = makeups.filter((m) => m.subject_id === e.subject_id)
 
               return (
-                <div key={e.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '1.2rem', background: '#fafbfc' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: '0.5rem' }}>
-                    <div>
+                <div key={e.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '1.1rem', background: '#fafbfc', maxWidth: '100%', boxSizing: 'border-box' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: '0.6rem' }}>
+                    <div style={{ minWidth: 0, maxWidth: '100%' }}>
                       <span className="badge badge-blue" style={{ marginRight: 8 }}>Nivel {e.subject?.level}</span>
-                      <strong style={{ fontSize: '1.1rem' }}>{e.subject?.name}</strong>
+                      <strong style={{ fontSize: '1.05rem', wordBreak: 'break-word' }}>{e.subject?.name}</strong>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
-                      <span className="badge badge-green" style={{ fontSize: '0.9rem', padding: '0.4rem 0.9rem' }}>
+                    <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span className="badge badge-green" style={{ fontSize: '0.85rem', padding: '0.35rem 0.8rem' }}>
                         Nota Actual: <strong>{e.grade !== null ? `${e.grade.toFixed(1)} / 20` : 'En curso'}</strong>
                       </span>
                       <button
@@ -307,47 +309,42 @@ function StudentHome({ userId, greet, first }: { userId: string; greet: string; 
                     <Progress value={e.progress} />
                   </div>
 
-                  {/* Resumen espacioso de las 10 clases */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, minmax(50px, 1fr))', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-                    {grades.map((g, i) => {
-                      const classNum = i + 1
-                      const makeup = subjectMakeups.find((m) => m.class_number === classNum)
-                      const isMidterm = classNum === 5
-                      const isFinal = classNum === 10
+                  {/* Resumen adaptable de las 10 clases (5x2 en móvil, 10 en fila en pantallas grandes) */}
+                  <div className="grades-grid-container">
+                    <div className="grades-grid-track">
+                      {grades.map((g, i) => {
+                        const classNum = i + 1
+                        const makeup = subjectMakeups.find((m) => m.class_number === classNum)
+                        const isMidterm = classNum === 5
+                        const isFinal = classNum === 10
 
-                      return (
-                        <div
-                          key={i}
-                          style={{
-                            textAlign: 'center',
-                            padding: '8px 4px',
-                            borderRadius: 8,
-                            background: g !== null ? '#f0fdf4' : '#fff',
-                            border: isMidterm ? '2px solid #f59e0b' : isFinal ? '2px solid #3b82f6' : '1px solid var(--border)',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                          }}
-                          title={`Clase ${classNum}: ${g !== null ? `${g} pts` : 'Pendiente'}`}
-                        >
-                          <span style={{ display: 'block', color: '#64748b', fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase' }}>
-                            C{classNum}
-                          </span>
-                          <strong style={{ fontSize: '1.05rem', color: g !== null ? '#15803d' : '#94a3b8' }}>
-                            {g !== null ? g : '—'}
-                          </strong>
-                          {isMidterm && <span style={{ display: 'block', fontSize: '0.62rem', color: '#d97706', fontWeight: 700 }}>CORTE</span>}
-                          {isFinal && <span style={{ display: 'block', fontSize: '0.62rem', color: '#2563eb', fontWeight: 700 }}>FINAL</span>}
-                          {makeup && (
-                            <span style={{ display: 'block', fontSize: '0.65rem', color: '#0284c7', marginTop: 2 }}>
-                              🔄 Recup.
+                        return (
+                          <div
+                            key={i}
+                            className={`grade-summary-cell ${isMidterm ? 'midterm' : ''} ${isFinal ? 'final' : ''} ${g !== null ? 'has-score' : ''}`}
+                            title={`Clase ${classNum}: ${g !== null ? `${g} pts` : 'Pendiente'}`}
+                          >
+                            <span className="grade-cell-num">
+                              C{classNum}
                             </span>
-                          )}
-                        </div>
-                      )
-                    })}
+                            <strong className="grade-cell-val">
+                              {g !== null ? g : '—'}
+                            </strong>
+                            {isMidterm && <span className="grade-cell-tag corte">CORTE</span>}
+                            {isFinal && <span className="grade-cell-tag final">FINAL</span>}
+                            {makeup && (
+                              <span className="grade-cell-tag recup">
+                                🔄 Recup.
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
 
                   {/* Evaluaciones mayores desglosadas */}
-                  <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', flexWrap: 'wrap', fontSize: '0.88rem', borderTop: '1px dashed var(--border)', paddingTop: '0.8rem' }}>
+                  <div style={{ display: 'flex', gap: '1.2rem', marginTop: '1rem', flexWrap: 'wrap', fontSize: '0.88rem', borderTop: '1px dashed var(--border)', paddingTop: '0.8rem' }}>
                     <div>
                       <span className="muted">Prueba de Corte (Clase 5/6): </span>
                       <strong style={{ color: '#d97706' }}>
