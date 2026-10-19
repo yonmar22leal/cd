@@ -129,12 +129,64 @@ export interface Attendance {
 export const RUBRIC_CRITERIA = [
   { key: 'attendance_score', label: 'Asistencia a la clase', max: 1 },
   { key: 'punctuality_score', label: 'Puntualidad en la llegada', max: 1 },
-  { key: 'participation_score', label: 'Participa en clase', max: 4 },
+  { key: 'participation_score', label: 'Participa activamente en clase', max: 4 },
   { key: 'interest_score', label: 'Muestra interés en el tema', max: 4 },
   { key: 'creativity_score', label: 'Presenta actividades con creatividad', max: 4 },
   { key: 'timely_delivery_score', label: 'Entrega actividades en tiempo estipulado', max: 4 },
   { key: 'relevance_score', label: 'Relaciona el tema con la cotidianidad', max: 2 },
 ] as const
+
+// Cuando se asigna tarea para la casa, la clase vale 10 pts y la tarea vale 10 pts (Total: 20 pts)
+export const RUBRIC_CRITERIA_WITH_HOMEWORK = [
+  { key: 'attendance_score', label: 'Asistencia a la clase', max: 1 },
+  { key: 'punctuality_score', label: 'Puntualidad en la llegada', max: 1 },
+  { key: 'participation_score', label: 'Participa activamente en clase', max: 2 },
+  { key: 'interest_score', label: 'Muestra interés en el tema', max: 2 },
+  { key: 'creativity_score', label: 'Presenta actividades con creatividad', max: 2 },
+  { key: 'relevance_score', label: 'Relaciona el tema con la cotidianidad', max: 2 },
+] as const
+
+export function getCurrentClassInfo(settings?: AcademicSettings | null) {
+  if (!settings?.start_date) {
+    return {
+      classNumber: 1,
+      label: 'Clase 1',
+      isMidterm: false,
+      isFinal: false,
+      cycleName: settings?.cycle_name || 'Ciclo Actual',
+    }
+  }
+
+  const [y, m, d] = settings.start_date.split('-').map(Number)
+  const start = new Date(y, m - 1, d)
+  const now = new Date()
+
+  start.setHours(0, 0, 0, 0)
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  const diffTime = today.getTime() - start.getTime()
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+  let classNumber = 1
+  if (diffDays >= 0) {
+    classNumber = Math.floor(diffDays / 7) + 1
+  }
+
+  const total = settings.total_classes || 10
+  const midterm = settings.midterm_class || 5
+
+  classNumber = Math.min(Math.max(classNumber, 1), total)
+
+  return {
+    classNumber,
+    label: `Clase ${classNumber}`,
+    isMidterm: classNumber === midterm,
+    isFinal: classNumber === total,
+    totalClasses: total,
+    midtermClass: midterm,
+    cycleName: settings.cycle_name || 'Ciclo Actual',
+  }
+}
 
 export const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
@@ -158,3 +210,4 @@ export const initials = (name: string) =>
     .slice(0, 2)
     .map((n) => n[0]?.toUpperCase())
     .join('') || '?'
+

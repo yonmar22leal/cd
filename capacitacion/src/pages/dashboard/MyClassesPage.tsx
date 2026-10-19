@@ -5,6 +5,7 @@ import { useAsync } from '../../lib/useAsync'
 import {
   initials,
   RUBRIC_CRITERIA,
+  RUBRIC_CRITERIA_WITH_HOMEWORK,
   type ClassEvaluation,
   type ClassSession,
   type Enrollment,
@@ -67,32 +68,67 @@ function RubricModal({ enrollment, classNum, evaluation, onClose, onSaved }: Rub
   const [notes, setNotes] = useState(evaluation?.notes ?? '')
   const [saving, setSaving] = useState(false)
 
-  const totalScore = Math.min(
-    20,
-    Object.values(scores).reduce((a, b) => a + b, 0),
-  )
+  const currentCriteria = hasHomework ? RUBRIC_CRITERIA_WITH_HOMEWORK : RUBRIC_CRITERIA
+
+  // Cálculo de puntaje en clase (máx 10 si hay tarea, máx 20 si no hay tarea)
+  const inClassScore = currentCriteria.reduce((sum, crit) => {
+    const val = scores[crit.key] ?? 0
+    return sum + Math.min(val, crit.max)
+  }, 0)
+
+  // Cálculo de puntaje de la actividad para el hogar (máx 10 pts)
+  const numericHw = hasHomework && homeworkScore !== '' ? Math.min(10, Math.max(0, Number(homeworkScore))) : 0
+
+  // Total: hasta 20 puntos
+  const totalScore = hasHomework
+    ? Math.min(20, inClassScore + numericHw)
+    : Math.min(20, inClassScore)
 
   const applyPreset = (preset: 'perfect' | 'normal' | 'absent') => {
     if (preset === 'perfect') {
-      setScores({
-        attendance_score: 1,
-        punctuality_score: 1,
-        participation_score: 4,
-        interest_score: 4,
-        creativity_score: 4,
-        timely_delivery_score: 4,
-        relevance_score: 2,
-      })
+      if (hasHomework) {
+        setScores({
+          attendance_score: 1,
+          punctuality_score: 1,
+          participation_score: 2,
+          interest_score: 2,
+          creativity_score: 2,
+          relevance_score: 2,
+        })
+        setHomeworkScore('10')
+      } else {
+        setScores({
+          attendance_score: 1,
+          punctuality_score: 1,
+          participation_score: 4,
+          interest_score: 4,
+          creativity_score: 4,
+          timely_delivery_score: 4,
+          relevance_score: 2,
+        })
+      }
     } else if (preset === 'normal') {
-      setScores({
-        attendance_score: 1,
-        punctuality_score: 1,
-        participation_score: 3,
-        interest_score: 3,
-        creativity_score: 3,
-        timely_delivery_score: 3,
-        relevance_score: 2,
-      })
+      if (hasHomework) {
+        setScores({
+          attendance_score: 1,
+          punctuality_score: 1,
+          participation_score: 2,
+          interest_score: 2,
+          creativity_score: 1,
+          relevance_score: 1,
+        })
+        setHomeworkScore('8')
+      } else {
+        setScores({
+          attendance_score: 1,
+          punctuality_score: 1,
+          participation_score: 3,
+          interest_score: 3,
+          creativity_score: 3,
+          timely_delivery_score: 3,
+          relevance_score: 2,
+        })
+      }
     } else {
       setScores({
         attendance_score: 0,
@@ -103,6 +139,7 @@ function RubricModal({ enrollment, classNum, evaluation, onClose, onSaved }: Rub
         timely_delivery_score: 0,
         relevance_score: 0,
       })
+      if (hasHomework) setHomeworkScore('0')
     }
   }
 
@@ -171,20 +208,20 @@ function RubricModal({ enrollment, classNum, evaluation, onClose, onSaved }: Rub
       <table className="rubric-table">
         <thead>
           <tr>
-            <th>Criterio de Evaluación</th>
+            <th>Criterio de Evaluación en Aula {hasHomework ? '(Máx 10 pts)' : '(Máx 20 pts)'}</th>
             <th style={{ width: 60, textAlign: 'center' }}>Máx</th>
             <th style={{ textAlign: 'right' }}>Puntaje</th>
           </tr>
         </thead>
         <tbody>
-          {RUBRIC_CRITERIA.map((crit) => {
-            const currentVal = scores[crit.key] ?? 0
+          {currentCriteria.map((crit) => {
+            const currentVal = Math.min(scores[crit.key] ?? 0, crit.max)
             const options = Array.from({ length: crit.max + 1 }, (_, i) => i)
 
             return (
               <tr key={crit.key}>
                 <td>{crit.label}</td>
-                <td style={{ textAlign: 'center', color: '#64748b' }}>{crit.max}</td>
+                <td style={{ textAlign: 'center', color: '#64748b', fontWeight: 600 }}>{crit.max}</td>
                 <td style={{ textAlign: 'right' }}>
                   <div className="rubric-pill-selector" style={{ justifyContent: 'flex-end' }}>
                     {options.map((val) => (
@@ -206,38 +243,49 @@ function RubricModal({ enrollment, classNum, evaluation, onClose, onSaved }: Rub
       </table>
 
       {/* Tarea para la casa */}
-      <div style={{ marginTop: '1.25rem', padding: '1rem', background: '#f8fafc', borderRadius: 8, border: '1px solid var(--border)' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, cursor: 'pointer' }}>
+      <div style={{ marginTop: '1.25rem', padding: '1rem', background: hasHomework ? '#f0fdf4' : '#f8fafc', borderRadius: 8, border: hasHomework ? '1px solid #86efac' : '1px solid var(--border)' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, cursor: 'pointer', color: hasHomework ? '#15803d' : 'inherit' }}>
           <input
             type="checkbox"
             checked={hasHomework}
-            onChange={(e) => setHasHomework(e.target.checked)}
+            onChange={(e) => {
+              const checked = e.target.checked
+              setHasHomework(checked)
+              if (!checked) setHomeworkScore('')
+            }}
           />
-          🏠 Asignar / Calificar Tarea para la Casa
+          🏠 Asignar Actividad / Tarea para la Casa (Vale los otros 10 pts)
         </label>
         {hasHomework && (
-          <div style={{ marginTop: '0.75rem', display: 'grid', gridTemplateColumns: '120px 1fr', gap: '0.75rem' }}>
-            <div>
-              <label style={{ fontSize: '0.8rem', color: '#64748b' }}>Nota Tarea (0-20)</label>
-              <input
-                type="number"
-                min={0}
-                max={20}
-                className="input"
-                value={homeworkScore}
-                onChange={(e) => setHomeworkScore(e.target.value)}
-                placeholder="Ej. 18"
-              />
+          <div style={{ marginTop: '0.85rem' }}>
+            <div style={{ fontSize: '0.82rem', color: '#166534', marginBottom: '0.75rem', background: 'rgba(34, 197, 94, 0.1)', padding: '6px 10px', borderRadius: 6 }}>
+              ✦ Dinámica 10/10: La evaluación en aula vale los primeros <strong>10 pts</strong> y esta actividad para el hogar vale los otros <strong>10 pts</strong> (Total: 20 pts).
             </div>
-            <div>
-              <label style={{ fontSize: '0.8rem', color: '#64748b' }}>Observación de la Tarea</label>
-              <input
-                type="text"
-                className="input"
-                placeholder="Tema de la tarea o comentarios"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
+            <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '0.75rem' }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: 600 }}>Nota Tarea (0 a 10 pts)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={10}
+                  step={0.5}
+                  className="input"
+                  style={{ borderColor: '#86efac', fontWeight: 700 }}
+                  value={homeworkScore}
+                  onChange={(e) => setHomeworkScore(e.target.value)}
+                  placeholder="0 - 10"
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', color: '#64748b' }}>Observación o Tema de la Tarea</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Ej. Guía lección 3, memorizar versículo..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -246,7 +294,9 @@ function RubricModal({ enrollment, classNum, evaluation, onClose, onSaved }: Rub
       <div className="rubric-total-box">
         <div>
           <span style={{ fontSize: '0.9rem', color: '#166534', fontWeight: 600 }}>Total Instrumento:</span>
-          <div style={{ fontSize: '0.8rem', color: '#15803d' }}>Escala oficial sobre 20 pts</div>
+          <div style={{ fontSize: '0.8rem', color: '#15803d' }}>
+            {hasHomework ? `Aula (${inClassScore}/10) + Tarea (${numericHw}/10)` : 'Evaluación regular en clase'}
+          </div>
         </div>
         <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#166534' }}>
           {totalScore} <span style={{ fontSize: '1rem', fontWeight: 500 }}>/ 20</span>

@@ -6,13 +6,20 @@ import { useAsync } from '../../lib/useAsync'
 import {
   DAYS,
   formatTime,
+  getCurrentClassInfo,
   type AcademicSettings,
   type Enrollment,
   type Schedule,
 } from '../../lib/types'
 import { Empty, Loader, Modal, Progress, StatCard } from '../../components/ui'
 
-function NextClasses({ schedules }: { schedules: Schedule[] }) {
+function NextClasses({
+  schedules,
+  classInfo,
+}: {
+  schedules: Schedule[]
+  classInfo?: { classNumber: number; label: string }
+}) {
   if (!schedules.length)
     return <Empty icon="🗓️" title="Sin clases programadas" text="Aún no hay horarios para mostrar." />
   const today = new Date().getDay()
@@ -25,7 +32,14 @@ function NextClasses({ schedules }: { schedules: Schedule[] }) {
         <div key={s.id} className="list-item">
           <span className="day-chip">{DAYS[s.day_of_week].slice(0, 3)}</span>
           <div className="grow">
-            <strong>{s.subject?.name}</strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <strong>{s.subject?.name}</strong>
+              {s.day_of_week === 6 && classInfo && (
+                <span className="badge badge-green" style={{ fontSize: '0.72rem', fontWeight: 800 }}>
+                  {classInfo.label}
+                </span>
+              )}
+            </div>
             <small>
               {formatTime(s.start_time)} – {formatTime(s.end_time)} · {s.room || s.modality}
             </small>
@@ -135,7 +149,12 @@ function StudentHome({ userId, greet, first }: { userId: string; greet: string; 
       <div className="card" style={{ marginBottom: '2rem', padding: '1.25rem', background: '#f8fafc', border: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem' }}>
           <div>
-            <h4 style={{ margin: '0 0 4px 0' }}>🗓️ {settings?.cycle_name || 'Ciclo de Clases'}</h4>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <h4 style={{ margin: 0 }}>🗓️ {settings?.cycle_name || 'Ciclo de Clases'}</h4>
+              <span className="badge badge-green" style={{ fontWeight: 800 }}>
+                {getCurrentClassInfo(settings).label}
+              </span>
+            </div>
             <span className="muted" style={{ fontSize: '0.88rem' }}>
               Las clases son todos los sábados a partir de las <strong>9:00 AM</strong>. Los 3 niveles cursan en simultáneo.
             </span>
@@ -254,9 +273,12 @@ function StudentHome({ userId, greet, first }: { userId: string; greet: string; 
       <div className="two-col">
         {/* Próximas Clases */}
         <div className="card">
-          <h3>Próximas clases</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ margin: 0 }}>Próximas clases</h3>
+            <span className="badge badge-green" style={{ fontWeight: 800 }}>{getCurrentClassInfo(settings).label}</span>
+          </div>
           {mine.length ? (
-            <NextClasses schedules={mine} />
+            <NextClasses schedules={mine} classInfo={getCurrentClassInfo(settings)} />
           ) : (
             <Empty icon="✨" title="Aún no estás inscrito" text="Ve a Materias e inscríbete a las de tu nivel." />
           )}
@@ -362,14 +384,20 @@ function StudentHome({ userId, greet, first }: { userId: string; greet: string; 
 
 function TeacherHome({ userId }: { userId: string }) {
   const { data, loading } = useAsync(async () => {
-    const [subjects, schedules] = await Promise.all([api.subjects(), api.schedules()])
+    const [subjects, schedules, settings] = await Promise.all([
+      api.subjects(),
+      api.schedules(),
+      api.getSettings().catch(() => null as AcademicSettings | null),
+    ])
     const isMine = (s: any) => s.teacher_conectar_id === userId || s.teacher_concebir_id === userId || s.teacher_crear_id === userId
     const mySubjects = subjects.filter(isMine)
     const enrollments = await api.enrollmentsForSubjects(mySubjects.map((s) => s.id))
-    return { mySubjects, schedules: schedules.filter((s) => s.subject && isMine(s.subject)), enrollments }
+    return { mySubjects, schedules: schedules.filter((s) => s.subject && isMine(s.subject)), enrollments, settings }
   }, [userId])
 
   if (loading || !data) return <Loader />
+  const classInfo = getCurrentClassInfo(data.settings)
+
   return (
     <>
       <div className="stats-grid">
@@ -379,8 +407,11 @@ function TeacherHome({ userId }: { userId: string }) {
       </div>
       <div className="two-col">
         <div className="card">
-          <h3>Mis próximas clases</h3>
-          <NextClasses schedules={data.schedules} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ margin: 0 }}>Mis próximas clases</h3>
+            <span className="badge badge-green" style={{ fontWeight: 800 }}>{classInfo.label}</span>
+          </div>
+          <NextClasses schedules={data.schedules} classInfo={classInfo} />
         </div>
         <div className="card">
           <h3>Accesos rápidos</h3>
@@ -404,6 +435,7 @@ function AdminHome() {
   
   if (loading || !data) return <Loader />
   const [c, schedules, settings] = data
+  const classInfo = getCurrentClassInfo(settings)
 
   const toggleEnrollments = async () => {
     try {
@@ -424,8 +456,11 @@ function AdminHome() {
       </div>
       <div className="two-col">
         <div className="card">
-          <h3>Clases de la semana</h3>
-          <NextClasses schedules={schedules} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ margin: 0 }}>Clases de la semana</h3>
+            <span className="badge badge-green" style={{ fontWeight: 800 }}>{classInfo.label}</span>
+          </div>
+          <NextClasses schedules={schedules} classInfo={classInfo} />
         </div>
         <div className="card">
           <h3>Administración</h3>
